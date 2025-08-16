@@ -6,13 +6,14 @@ import { useState } from "react"
 import { useAuth } from "@/contexts/auth-context"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { createEvent, type CreateEventData, type TicketType } from "@/lib/events"
+import { createEvent, type CreateEventData, type TicketType, CURRENCY_OPTIONS, getCurrencySymbol } from "@/lib/events"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Ticket, ArrowLeft, Plus, Trash2 } from "lucide-react"
 
 export default function CreateEventPage() {
@@ -27,7 +28,9 @@ export default function CreateEventPage() {
     date: new Date(),
     location: "",
     address: "",
+    category: "Música",
     capacity: 100,
+    currency: "CVE",
     ticketTypes: [
       {
         name: "Bilhete Geral",
@@ -35,6 +38,7 @@ export default function CreateEventPage() {
         price: 0,
         quantity: 100,
         isActive: true,
+        currency: "CVE",
       },
     ],
   })
@@ -67,6 +71,7 @@ export default function CreateEventPage() {
           price: 0,
           quantity: 0,
           isActive: true,
+          currency: prev.currency,
         },
       ],
     }))
@@ -83,6 +88,17 @@ export default function CreateEventPage() {
     setFormData((prev) => ({
       ...prev,
       ticketTypes: prev.ticketTypes.map((tt, i) => (i === index ? { ...tt, [field]: value } : tt)),
+    }))
+  }
+
+  const handleCurrencyChange = (newCurrency: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      currency: newCurrency,
+      ticketTypes: prev.ticketTypes.map((tt) => ({
+        ...tt,
+        currency: newCurrency,
+      })),
     }))
   }
 
@@ -153,7 +169,7 @@ export default function CreateEventPage() {
                 />
               </div>
 
-              <div className="grid md:grid-cols-2 gap-4">
+              <div className="grid md:grid-cols-3 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="date">Data e Hora *</Label>
                   <Input
@@ -177,6 +193,24 @@ export default function CreateEventPage() {
                       }))
                     }
                   />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="currency">Moeda *</Label>
+                  <Select value={formData.currency} onValueChange={handleCurrencyChange}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione a moeda" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {CURRENCY_OPTIONS.map((currency) => (
+                        <SelectItem key={currency.code} value={currency.code}>
+                          <span className="flex items-center gap-2">
+                            <span className="font-medium">{currency.symbol}</span>
+                            <span>{currency.name}</span>
+                          </span>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
 
@@ -242,7 +276,7 @@ export default function CreateEventPage() {
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label>Preço (€) *</Label>
+                      <Label>Preço ({getCurrencySymbol(formData.currency)}) *</Label>
                       <Input
                         type="number"
                         min="0"

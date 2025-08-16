@@ -18,6 +18,7 @@ export interface Event {
   updatedAt: Date
   imageUrl?: string
   category: string
+  currency: string
 }
 
 export interface TicketType {
@@ -30,6 +31,7 @@ export interface TicketType {
   isActive?: boolean
   saleStartDate?: Date
   saleEndDate?: Date
+  currency: string
 }
 
 export interface CreateEventData {
@@ -42,6 +44,22 @@ export interface CreateEventData {
   category: string
   capacity?: number
   ticketTypes: Omit<TicketType, "id" | "sold">[]
+  currency: string
+}
+
+export const CURRENCY_OPTIONS = [
+  { code: "CVE", name: "Escudo Cabo-verdiano", symbol: "CVE" },
+  { code: "EUR", name: "Euro", symbol: "€" },
+  { code: "USD", name: "Dólar Americano", symbol: "$" },
+  { code: "BRL", name: "Real Brasileiro", symbol: "R$" },
+  { code: "AOA", name: "Kwanza Angolano", symbol: "AOA" },
+  { code: "MZN", name: "Metical Moçambicano", symbol: "MZN" },
+  { code: "GBP", name: "Libra Esterlina", symbol: "£" },
+]
+
+export function getCurrencySymbol(currencyCode: string): string {
+  const currency = CURRENCY_OPTIONS.find((c) => c.code === currencyCode)
+  return currency?.symbol || currencyCode
 }
 
 const mockEvents: Event[] = [
@@ -58,24 +76,27 @@ const mockEvents: Event[] = [
     capacity: 5000,
     soldTickets: 1250,
     category: "Música",
+    currency: "CVE",
     ticketTypes: [
       {
         id: "tt1",
         name: "Geral",
         description: "Acesso geral ao festival",
-        price: 45.0,
+        price: 4500.0,
         quantity: 3000,
         sold: 750,
         isActive: true,
+        currency: "CVE",
       },
       {
         id: "tt2",
         name: "VIP",
         description: "Acesso VIP com bar exclusivo",
-        price: 85.0,
+        price: 8500.0,
         quantity: 500,
         sold: 200,
         isActive: true,
+        currency: "CVE",
       },
     ],
     createdAt: new Date("2025-08-01T10:00:00"),
@@ -95,6 +116,7 @@ const mockEvents: Event[] = [
     capacity: 800,
     soldTickets: 320,
     category: "Tecnologia",
+    currency: "EUR",
     ticketTypes: [
       {
         id: "tt3",
@@ -104,6 +126,7 @@ const mockEvents: Event[] = [
         quantity: 200,
         sold: 180,
         isActive: false,
+        currency: "EUR",
       },
       {
         id: "tt4",
@@ -113,6 +136,7 @@ const mockEvents: Event[] = [
         quantity: 600,
         sold: 140,
         isActive: true,
+        currency: "EUR",
       },
     ],
     createdAt: new Date("2025-07-15T09:00:00"),
@@ -174,6 +198,7 @@ export async function getEvents(organizerId?: string): Promise<Event[]> {
           status: event.status,
           soldTickets: Number.parseInt(event.sold_tickets) || 0,
           category: event.category,
+          currency: event.currency,
           ticketTypes: (ticketTypes || []).map((tt: any) => ({
             id: tt.id,
             name: tt.name,
@@ -181,6 +206,7 @@ export async function getEvents(organizerId?: string): Promise<Event[]> {
             quantity: tt.quantity,
             sold: tt.sold,
             isActive: true,
+            currency: tt.currency,
           })),
           createdAt: new Date(event.created_at),
           updatedAt: new Date(event.updated_at),
@@ -245,6 +271,7 @@ export async function getEvent(id: string): Promise<Event | null> {
       status: event.status,
       soldTickets: Number.parseInt(soldTickets[0]?.total_sold) || 0,
       category: event.category,
+      currency: event.currency,
       ticketTypes: (ticketTypes || []).map((tt: any) => ({
         id: tt.id,
         name: tt.name,
@@ -252,6 +279,7 @@ export async function getEvent(id: string): Promise<Event | null> {
         quantity: tt.quantity,
         sold: tt.sold,
         isActive: true,
+        currency: tt.currency,
       })),
       createdAt: new Date(event.created_at),
       updatedAt: new Date(event.updated_at),
@@ -268,8 +296,8 @@ export async function createEvent(data: CreateEventData, organizerId: string): P
   try {
     // Insert event
     const eventResult = await sql(
-      `INSERT INTO evently.events (title, description, date, location, category, organizer_id, image_url)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)
+      `INSERT INTO evently.events (title, description, date, location, category, organizer_id, image_url, currency)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
        RETURNING *`,
       [
         data.title,
@@ -279,6 +307,7 @@ export async function createEvent(data: CreateEventData, organizerId: string): P
         data.category,
         organizerId,
         data.imageUrl || null,
+        data.currency,
       ],
     )
 
@@ -288,10 +317,10 @@ export async function createEvent(data: CreateEventData, organizerId: string): P
     const ticketTypes = await Promise.all(
       data.ticketTypes.map(async (tt) => {
         const result = await sql(
-          `INSERT INTO evently.ticket_types (event_id, name, price, quantity)
-           VALUES ($1, $2, $3, $4)
+          `INSERT INTO evently.ticket_types (event_id, name, price, quantity, currency)
+           VALUES ($1, $2, $3, $4, $5)
            RETURNING *`,
-          [event.id, tt.name, tt.price, tt.quantity],
+          [event.id, tt.name, tt.price, tt.quantity, tt.currency],
         )
         return {
           id: result[0].id,
@@ -300,6 +329,7 @@ export async function createEvent(data: CreateEventData, organizerId: string): P
           quantity: result[0].quantity,
           sold: 0,
           isActive: true,
+          currency: result[0].currency,
         }
       }),
     )
@@ -315,6 +345,7 @@ export async function createEvent(data: CreateEventData, organizerId: string): P
       status: event.status,
       soldTickets: 0,
       category: event.category,
+      currency: event.currency,
       ticketTypes,
       createdAt: new Date(event.created_at),
       updatedAt: new Date(event.updated_at),
@@ -359,6 +390,12 @@ export async function updateEvent(id: string, data: Partial<CreateEventData>): P
     if (data.category) {
       updateFields.push(`category = $${paramIndex}`)
       params.push(data.category)
+      paramIndex++
+    }
+
+    if (data.currency) {
+      updateFields.push(`currency = $${paramIndex}`)
+      params.push(data.currency)
       paramIndex++
     }
 

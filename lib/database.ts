@@ -17,6 +17,7 @@ function getConnection() {
   return sql
 }
 
+export { getConnection }
 export { getConnection as sql }
 
 // Helper functions for common queries
