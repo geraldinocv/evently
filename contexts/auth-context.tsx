@@ -2,13 +2,7 @@
 
 import type React from "react"
 import { createContext, useContext, useEffect, useState } from "react"
-import { createClient } from "@/lib/supabase/client"
-
-interface User {
-  id: string
-  email: string
-  name: string
-}
+import { getCurrentUser, logoutUser, type User } from "@/lib/auth/supabase-auth"
 
 interface AuthState {
   user: User | null
@@ -18,6 +12,7 @@ interface AuthState {
 
 interface AuthContextType extends AuthState {
   signOut: () => Promise<void>
+  refreshUser: () => void
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -29,62 +24,49 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     isAuthenticated: false,
   })
 
-  const supabase = createClient()
-
   useEffect(() => {
-    const getSession = async () => {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession()
+    const checkAuth = () => {
+      console.log("[v0] Checking authentication state")
+      const user = getCurrentUser()
 
-      if (session?.user) {
-        const { data: profile } = await supabase.from("profiles").select("*").eq("user_id", session.user.id).single()
+      setAuthState({
+        user,
+        isLoading: false,
+        isAuthenticated: !!user,
+      })
 
-        setAuthState({
-          user: {
-            id: session.user.id,
-            email: session.user.email!,
-            name: profile?.name || session.user.email!,
-          },
-          isLoading: false,
-          isAuthenticated: true,
-        })
-      } else {
-        setAuthState((prev) => ({ ...prev, isLoading: false }))
+      console.log("[v0] Auth state updated:", { authenticated: !!user, user: user?.email })
+    }
+
+    checkAuth()
+
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === "evently_user") {
+        checkAuth()
       }
     }
 
-    getSession()
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (session?.user) {
-        const { data: profile } = await supabase.from("profiles").select("*").eq("user_id", session.user.id).single()
-
-        setAuthState({
-          user: {
-            id: session.user.id,
-            email: session.user.email!,
-            name: profile?.name || session.user.email!,
-          },
-          isLoading: false,
-          isAuthenticated: true,
-        })
-      } else {
-        setAuthState({
-          user: null,
-          isLoading: false,
-          isAuthenticated: false,
-        })
-      }
-    })
-
-    return () => subscription.unsubscribe()
-  }, [supabase])
+    window.addEventListener("storage", handleStorageChange)
+    return () => window.removeEventListener("storage", handleStorageChange)
+  }, [])
 
   const handleSignOut = async (): Promise<void> => {
-    await supabase.auth.signOut()
+    console.log("[v0] Signing out user")
+    logoutUser()
+    setAuthState({
+      user: null,
+      isLoading: false,
+      isAuthenticated: false,
+    })
+  }
+
+  const refreshUser = () => {
+    const user = getCurrentUser()
+    setAuthState({
+      user,
+      isLoading: false,
+      isAuthenticated: !!user,
+    })
   }
 
   return (
@@ -92,6 +74,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       value={{
         ...authState,
         signOut: handleSignOut,
+        refreshUser,
       }}
     >
       {children}
