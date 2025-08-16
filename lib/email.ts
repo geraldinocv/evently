@@ -1,6 +1,8 @@
 import { Resend } from "resend"
 import { render } from "@react-email/render"
 import TicketEmail from "../emails/ticket-email"
+import AccountConfirmationEmail from "../emails/account-confirmation"
+import TicketPurchaseConfirmation from "../emails/ticket-purchase-confirmation"
 import type { Ticket } from "./tickets"
 import { getBaseUrl } from "./utils"
 
@@ -119,6 +121,102 @@ export async function sendVerificationEmail(email: string, verificationToken: st
   `
 
   await sendEmail(email, "Verificar sua conta - Evently", html)
+}
+
+export async function sendAccountConfirmationEmail(
+  email: string,
+  userName: string,
+  confirmationUrl: string,
+): Promise<void> {
+  const resendClient = getResendClient()
+
+  if (!resendClient) {
+    console.log("[MOCK EMAIL] RESEND_API_KEY not found, using mock email")
+    console.log(`[MOCK EMAIL] Sending account confirmation to ${email}`)
+    return
+  }
+
+  try {
+    const emailHtml = render(
+      AccountConfirmationEmail({
+        userName,
+        confirmationUrl,
+      }),
+    )
+
+    const { data, error } = await resendClient.emails.send({
+      from: "Evently <noreply@evently.app>",
+      to: [email],
+      subject: "Confirme a sua conta Evently",
+      html: emailHtml,
+    })
+
+    if (error) {
+      console.error("[RESEND ERROR]", error)
+      throw new Error(`Failed to send email: ${error.message}`)
+    }
+
+    console.log("[RESEND SUCCESS] Account confirmation email sent:", data?.id)
+  } catch (error) {
+    console.error("[EMAIL ERROR]", error)
+    console.log(`[FALLBACK EMAIL] Account confirmation to ${email}`)
+  }
+}
+
+export async function sendTicketPurchaseConfirmationEmail(
+  customerEmail: string,
+  customerName: string,
+  eventTitle: string,
+  eventDate: string,
+  eventLocation: string,
+  ticketType: string,
+  quantity: number,
+  totalAmount: string,
+  currency: string,
+  qrCodeUrl: string,
+  ticketUrl: string,
+): Promise<void> {
+  const resendClient = getResendClient()
+
+  if (!resendClient) {
+    console.log("[MOCK EMAIL] RESEND_API_KEY not found, using mock email")
+    console.log(`[MOCK EMAIL] Sending ticket purchase confirmation to ${customerEmail}`)
+    return
+  }
+
+  try {
+    const emailHtml = render(
+      TicketPurchaseConfirmation({
+        customerName,
+        eventTitle,
+        eventDate,
+        eventLocation,
+        ticketType,
+        quantity,
+        totalAmount,
+        currency,
+        qrCodeUrl,
+        ticketUrl,
+      }),
+    )
+
+    const { data, error } = await resendClient.emails.send({
+      from: "Evently <noreply@evently.app>",
+      to: [customerEmail],
+      subject: `Os seus bilhetes para ${eventTitle} - Evently`,
+      html: emailHtml,
+    })
+
+    if (error) {
+      console.error("[RESEND ERROR]", error)
+      throw new Error(`Failed to send email: ${error.message}`)
+    }
+
+    console.log("[RESEND SUCCESS] Ticket purchase confirmation sent:", data?.id)
+  } catch (error) {
+    console.error("[EMAIL ERROR]", error)
+    console.log(`[FALLBACK EMAIL] Ticket purchase confirmation to ${customerEmail}`)
+  }
 }
 
 export async function sendTicketSMS(tickets: Ticket[]): Promise<void> {
