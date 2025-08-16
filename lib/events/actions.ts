@@ -7,7 +7,7 @@ import { revalidatePath } from "next/cache"
 function createSupabaseServerClient() {
   const cookieStore = cookies()
 
-  return createServerClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, {
+  return createServerClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, {
     cookies: {
       getAll() {
         return cookieStore.getAll()
@@ -31,6 +31,16 @@ export async function createEvent(prevState: any, formData: FormData) {
 
     const supabase = createSupabaseServerClient()
 
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser()
+
+    if (authError || !user) {
+      console.log("[v0] Authentication failed:", authError)
+      return { error: "Usuário não autenticado" }
+    }
+
     const title = formData.get("title")?.toString()
     const description = formData.get("description")?.toString()
     const date = formData.get("date")?.toString()
@@ -44,20 +54,14 @@ export async function createEvent(prevState: any, formData: FormData) {
       return { error: "Todos os campos obrigatórios devem ser preenchidos" }
     }
 
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
+    const { data: profile, error: profileError } = await supabase
+      .from("profiles")
+      .select("id")
+      .eq("email", user.email)
+      .single()
 
-    if (!user) {
-      console.log("[v0] No authenticated user found")
-      return { error: "Usuário não autenticado" }
-    }
-
-    // Get user profile to get the user ID
-    const { data: profile } = await supabase.from("profiles").select("id").eq("email", user.email).single()
-
-    if (!profile) {
-      console.log("[v0] User profile not found")
+    if (profileError || !profile) {
+      console.log("[v0] User profile not found:", profileError)
       return { error: "Perfil de usuário não encontrado" }
     }
 
@@ -74,6 +78,8 @@ export async function createEvent(prevState: any, formData: FormData) {
         max_attendees: maxAttendees,
         image_url: imageUrl || null,
         organizer_id: profile.id,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
       })
       .select()
       .single()
@@ -95,33 +101,57 @@ export async function createEvent(prevState: any, formData: FormData) {
   }
 }
 
+export async function getEvents() {
+  try {
+    const supabase = createSupabaseServerClient()
+
+    const { data, error } = await supabase.from("events").select("*").order("created_at", { ascending: false })
+
+    if (error) {
+      console.error("Error fetching events:", error)
+      return []
+    }
+
+    return data || []
+  } catch (error) {
+    console.error("Server error:", error)
+    return []
+  }
+}
+
 export async function purchaseTicket(prevState: any, formData: FormData) {
   try {
+    const supabase = createSupabaseServerClient()
+
     const eventId = Number.parseInt(formData.get("eventId")?.toString() || "0")
-    const userId = Number.parseInt(formData.get("userId")?.toString() || "0")
     const quantity = Number.parseInt(formData.get("quantity")?.toString() || "1")
     const paymentMethod = formData.get("paymentMethod")?.toString()
+    const customerName = formData.get("customerName")?.toString()
+    const customerEmail = formData.get("customerEmail")?.toString()
+    const customerPhone = formData.get("customerPhone")?.toString()
     const totalPrice = Number.parseFloat(formData.get("totalPrice")?.toString() || "0")
 
-    if (!eventId || !userId || !paymentMethod) {
+    if (!eventId || !paymentMethod || !customerEmail) {
       return { error: "Dados de compra inválidos" }
     }
 
     // Generate unique QR code data
-    const qrCodeData = `EVENTLY-${eventId}-${userId}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
-
-    const supabase = createSupabaseServerClient()
+    const qrCodeData = `EVENTLY-${eventId}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
 
     const { data, error } = await supabase
       .from("tickets")
       .insert({
         event_id: eventId,
-        user_id: userId,
+        customer_name: customerName,
+        customer_email: customerEmail,
+        customer_phone: customerPhone,
         quantity,
         payment_method: paymentMethod,
-        total_price: totalPrice,
-        payment_status: "completed",
+        amount_paid: totalPrice,
+        status: "active",
         qr_code: qrCodeData,
+        unique_link: qrCodeData,
+        created_at: new Date().toISOString(),
       })
       .select()
       .single()
@@ -144,26 +174,10 @@ export async function purchaseTicket(prevState: any, formData: FormData) {
   }
 }
 
-export async function getEvents() {
+export async function getUserTickets(userEmail: string) {
   try {
     const supabase = createSupabaseServerClient()
-    const { data, error } = await supabase.from("events").select("*").order("created_at", { ascending: false })
 
-    if (error) {
-      console.error("Error fetching events:", error)
-      return []
-    }
-
-    return data || []
-  } catch (error) {
-    console.error("Server error:", error)
-    return []
-  }
-}
-
-export async function getUserTickets(userId: number) {
-  try {
-    const supabase = createSupabaseServerClient()
     const { data, error } = await supabase
       .from("tickets")
       .select(`
@@ -175,7 +189,7 @@ export async function getUserTickets(userId: number) {
           image_url
         )
       `)
-      .eq("user_id", userId)
+      .eq("customer_email", userEmail)
       .order("created_at", { ascending: false })
 
     if (error) {

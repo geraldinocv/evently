@@ -13,7 +13,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Ticket, ArrowLeft, ImageIcon } from "lucide-react"
+import { Ticket, ArrowLeft, ImageIcon, Upload } from "lucide-react"
 
 export default function CreateEventPage() {
   const { user } = useAuth()
@@ -27,8 +27,22 @@ export default function CreateEventPage() {
     location: "",
     price: "",
     maxAttendees: "",
-    imageUrl: "",
   })
+
+  const [imageFile, setImageFile] = useState<File | null>(null)
+  const [imagePreview, setImagePreview] = useState<string>("")
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      setImageFile(file)
+      const reader = new FileReader()
+      reader.onload = (e) => {
+        setImagePreview(e.target?.result as string)
+      }
+      reader.readAsDataURL(file)
+    }
+  }
 
   React.useEffect(() => {
     if (state?.success) {
@@ -107,30 +121,39 @@ export default function CreateEventPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="imageUrl" className="flex items-center gap-2">
+                <Label htmlFor="imageFile" className="flex items-center gap-2">
                   <ImageIcon className="h-4 w-4" />
-                  Cartaz do Evento (URL da Imagem)
+                  Cartaz do Evento
                 </Label>
-                <Input
-                  id="imageUrl"
-                  name="imageUrl"
-                  type="url"
-                  value={formData.imageUrl}
-                  onChange={(e) => setFormData((prev) => ({ ...prev, imageUrl: e.target.value }))}
-                  placeholder="https://exemplo.com/cartaz-evento.jpg"
-                />
+                <div className="flex items-center gap-4">
+                  <Input
+                    id="imageFile"
+                    name="imageFile"
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageUpload}
+                    className="file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => document.getElementById("imageFile")?.click()}
+                  >
+                    <Upload className="h-4 w-4 mr-2" />
+                    Escolher Ficheiro
+                  </Button>
+                </div>
                 <p className="text-sm text-gray-500">
-                  Cole o URL de uma imagem para o cartaz do seu evento. Recomendamos imagens com proporção 16:9.
+                  Faça upload de uma imagem para o cartaz do seu evento. Recomendamos imagens com proporção 16:9 (JPG,
+                  PNG, máx. 5MB).
                 </p>
-                {formData.imageUrl && (
+                {imagePreview && (
                   <div className="mt-2">
                     <img
-                      src={formData.imageUrl || "/placeholder.svg"}
+                      src={imagePreview || "/placeholder.svg"}
                       alt="Preview do cartaz"
                       className="w-full max-w-md h-32 object-cover rounded-lg border"
-                      onError={(e) => {
-                        e.currentTarget.style.display = "none"
-                      }}
                     />
                   </div>
                 )}
