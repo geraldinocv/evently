@@ -29,6 +29,7 @@
     "@react-email/components": "latest",
     "@react-email/render": "latest",
     "@supabase/auth-helpers-nextjs": "latest",
+    "@supabase/ssr": "latest",
     "@supabase/supabase-js": "latest",
     "@types/bcryptjs": "^2.4.6",
     "@types/node": "^20.0.0",
