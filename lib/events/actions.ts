@@ -1,35 +1,15 @@
 "use server"
 
-import { createServerClient } from "@supabase/ssr"
+import { createServerActionClient } from "@supabase/auth-helpers-nextjs"
 import { cookies } from "next/headers"
 import { revalidatePath } from "next/cache"
-
-function createSupabaseServerClient() {
-  const cookieStore = cookies()
-
-  return createServerClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, {
-    cookies: {
-      getAll() {
-        return cookieStore.getAll()
-      },
-      setAll(cookiesToSet) {
-        try {
-          cookiesToSet.forEach(({ name, value, options }) => cookieStore.set(name, value, options))
-        } catch {
-          // The `setAll` method was called from a Server Component.
-          // This can be ignored if you have middleware refreshing
-          // user sessions.
-        }
-      },
-    },
-  })
-}
 
 export async function createEvent(prevState: any, formData: FormData) {
   try {
     console.log("[v0] Creating event with form data:", Object.fromEntries(formData))
 
-    const supabase = createSupabaseServerClient()
+    const cookieStore = cookies()
+    const supabase = createServerActionClient({ cookies: () => cookieStore })
 
     const {
       data: { user },
@@ -103,7 +83,8 @@ export async function createEvent(prevState: any, formData: FormData) {
 
 export async function getEvents() {
   try {
-    const supabase = createSupabaseServerClient()
+    const cookieStore = cookies()
+    const supabase = createServerActionClient({ cookies: () => cookieStore })
 
     const { data, error } = await supabase.from("events").select("*").order("created_at", { ascending: false })
 
@@ -121,7 +102,7 @@ export async function getEvents() {
 
 export async function purchaseTicket(prevState: any, formData: FormData) {
   try {
-    const supabase = createSupabaseServerClient()
+    const supabase = createServerActionClient({ cookies: () => cookies() })
 
     const eventId = Number.parseInt(formData.get("eventId")?.toString() || "0")
     const quantity = Number.parseInt(formData.get("quantity")?.toString() || "1")
@@ -176,7 +157,7 @@ export async function purchaseTicket(prevState: any, formData: FormData) {
 
 export async function getUserTickets(userEmail: string) {
   try {
-    const supabase = createSupabaseServerClient()
+    const supabase = createServerActionClient({ cookies: () => cookies() })
 
     const { data, error } = await supabase
       .from("tickets")
