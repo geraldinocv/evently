@@ -5,7 +5,6 @@ import { Card, CardDescription, CardHeader, CardTitle, CardContent } from "@/com
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel"
 import { Badge } from "@/components/ui/badge"
 import { Ticket, Users, QrCode, BarChart3, Calendar, MapPin, Euro } from "lucide-react"
-import { getPublicEvents } from "@/lib/events/actions"
 import { useState, useEffect } from "react"
 
 export default function HomePage() {
@@ -15,10 +14,15 @@ export default function HomePage() {
   useEffect(() => {
     async function fetchEvents() {
       try {
-        const eventsData = await getPublicEvents()
-        setEvents(eventsData)
+        const response = await fetch("/api/events")
+        if (response.ok) {
+          const eventsData = await response.json()
+          setEvents(eventsData)
+        } else {
+          console.error("[v0] Failed to fetch events:", response.statusText)
+        }
       } catch (error) {
-        console.error("Error fetching events:", error)
+        console.error("[v0] Error fetching events:", error)
       } finally {
         setLoading(false)
       }
