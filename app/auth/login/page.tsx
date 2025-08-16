@@ -1,45 +1,43 @@
 "use client"
 
-import type React from "react"
-
-import { useState } from "react"
+import { useActionState } from "react"
+import { useFormStatus } from "react-dom"
 import { useRouter } from "next/navigation"
+import { useEffect } from "react"
 import Link from "next/link"
-import { useAuth } from "@/contexts/auth-context"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Ticket } from "lucide-react"
+import { Ticket, Loader2 } from "lucide-react"
+import { signIn } from "@/lib/auth/actions"
+
+function SubmitButton() {
+  const { pending } = useFormStatus()
+
+  return (
+    <Button type="submit" disabled={pending} className="w-full">
+      {pending ? (
+        <>
+          <Loader2 className="mr-2 h-4 w-4 animate-spin" />A entrar...
+        </>
+      ) : (
+        "Entrar"
+      )}
+    </Button>
+  )
+}
 
 export default function LoginPage() {
-  const [email, setEmail] = useState("")
-  const [password, setPassword] = useState("")
-  const [error, setError] = useState("")
-  const [isLoading, setIsLoading] = useState(false)
-
-  const { signIn } = useAuth()
   const router = useRouter()
+  const [state, formAction] = useActionState(signIn, null)
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setError("")
-    setIsLoading(true)
-
-    try {
-      const success = await signIn(email, password)
-      if (success) {
-        router.push("/dashboard")
-      } else {
-        setError("Email ou palavra-passe incorretos")
-      }
-    } catch {
-      setError("Erro ao fazer login. Tente novamente.")
-    } finally {
-      setIsLoading(false)
+  useEffect(() => {
+    if (state?.success) {
+      router.push("/dashboard")
     }
-  }
+  }, [state, router])
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
@@ -52,40 +50,24 @@ export default function LoginPage() {
           <CardDescription>Aceda à sua conta para gerir eventos e bilhetes</CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form action={formAction} className="space-y-4">
+            {state?.error && (
+              <Alert variant="destructive">
+                <AlertDescription>{state.error}</AlertDescription>
+              </Alert>
+            )}
+
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                placeholder="seu@email.com"
-              />
+              <Input id="email" name="email" type="email" required placeholder="seu@email.com" />
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="password">Palavra-passe</Label>
-              <Input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                placeholder="••••••••"
-              />
+              <Input id="password" name="password" type="password" required placeholder="••••••••" />
             </div>
 
-            {error && (
-              <Alert variant="destructive">
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            )}
-
-            <Button type="submit" className="w-full" disabled={isLoading}>
-              {isLoading ? "A entrar..." : "Entrar"}
-            </Button>
+            <SubmitButton />
           </form>
 
           <div className="mt-6 text-center text-sm">
@@ -98,11 +80,8 @@ export default function LoginPage() {
           </div>
 
           <div className="mt-4 p-3 bg-gray-50 rounded-lg text-xs text-gray-600">
-            <p className="font-medium mb-1">Contas de teste:</p>
-            <p>Admin: admin@evently.com</p>
-            <p>Organizador: organizer@evently.com</p>
-            <p>RP: rp@evently.com</p>
-            <p className="mt-1">Palavra-passe: password</p>
+            <p className="font-medium mb-1">Para testar, crie uma conta nova</p>
+            <p className="text-sm">Use qualquer email válido e uma palavra-passe com pelo menos 6 caracteres</p>
           </div>
         </CardContent>
       </Card>

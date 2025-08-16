@@ -6,17 +6,10 @@ import { useEffect, useState } from "react"
 import { useParams, useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { getEvent, type Event } from "@/lib/events"
-import {
-  processPayment,
-  validatePaymentData,
-  getPaymentMethodLabel,
-  type PaymentData,
-  type PaymentMethod,
-} from "@/lib/payments"
+import { processPayment, getPaymentMethodLabel, type PaymentData, type PaymentMethod } from "@/lib/payments"
 import { purchaseTickets, type PurchaseData } from "@/lib/tickets"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Alert, AlertDescription } from "@/components/ui/alert"
@@ -69,10 +62,8 @@ export default function CheckoutPage() {
 
     setError("")
 
-    // Validate payment data
-    const validationError = validatePaymentData(paymentData)
-    if (validationError) {
-      setError(validationError)
+    if (!paymentData.method) {
+      setError("Por favor selecione um método de pagamento")
       return
     }
 
@@ -263,7 +254,6 @@ export default function CheckoutPage() {
             </CardHeader>
             <CardContent>
               <form onSubmit={handlePayment} className="space-y-6">
-                {/* Payment Method Selection */}
                 <div className="space-y-3">
                   <Label>Escolha o método de pagamento</Label>
                   <RadioGroup
@@ -293,79 +283,13 @@ export default function CheckoutPage() {
                   </RadioGroup>
                 </div>
 
-                {/* Payment Method Fields */}
-                {paymentData.method === "card" && (
-                  <div className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="cardNumber">Número do Cartão</Label>
-                      <Input
-                        id="cardNumber"
-                        placeholder="1234 5678 9012 3456"
-                        value={paymentData.cardNumber || ""}
-                        onChange={(e) => setPaymentData((prev) => ({ ...prev, cardNumber: e.target.value }))}
-                        required
-                      />
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="expiryDate">Validade</Label>
-                        <Input
-                          id="expiryDate"
-                          placeholder="MM/AA"
-                          value={paymentData.expiryDate || ""}
-                          onChange={(e) => setPaymentData((prev) => ({ ...prev, expiryDate: e.target.value }))}
-                          required
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="cvv">CVV</Label>
-                        <Input
-                          id="cvv"
-                          placeholder="123"
-                          value={paymentData.cvv || ""}
-                          onChange={(e) => setPaymentData((prev) => ({ ...prev, cvv: e.target.value }))}
-                          required
-                        />
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="cardholderName">Nome do Titular</Label>
-                      <Input
-                        id="cardholderName"
-                        placeholder="Nome como aparece no cartão"
-                        value={paymentData.cardholderName || ""}
-                        onChange={(e) => setPaymentData((prev) => ({ ...prev, cardholderName: e.target.value }))}
-                        required
-                      />
-                    </div>
-                  </div>
-                )}
-
-                {paymentData.method === "mbway" && (
-                  <div className="space-y-2">
-                    <Label htmlFor="mbwayPhone">Número de Telemóvel</Label>
-                    <Input
-                      id="mbwayPhone"
-                      placeholder="912 345 678"
-                      value={paymentData.mbwayPhone || ""}
-                      onChange={(e) => setPaymentData((prev) => ({ ...prev, mbwayPhone: e.target.value }))}
-                      required
-                    />
-                  </div>
-                )}
-
-                {paymentData.method === "paypal" && (
-                  <div className="space-y-2">
-                    <Label htmlFor="paypalEmail">Email do PayPal</Label>
-                    <Input
-                      id="paypalEmail"
-                      type="email"
-                      placeholder="seu@email.com"
-                      value={paymentData.paypalEmail || ""}
-                      onChange={(e) => setPaymentData((prev) => ({ ...prev, paypalEmail: e.target.value }))}
-                      required
-                    />
-                  </div>
+                {paymentData.method === "vint4" && (
+                  <Alert>
+                    <AlertDescription>
+                      Será redirecionado para o sistema seguro Vinti4 onde irá inserir os dados do seu cartão e
+                      autenticar com OTP.
+                    </AlertDescription>
+                  </Alert>
                 )}
 
                 {paymentData.method === "multibanco" && (
@@ -377,60 +301,26 @@ export default function CheckoutPage() {
                   </Alert>
                 )}
 
-                {paymentData.method === "vint4" && (
-                  <div className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="vint4Email">Email *</Label>
-                      <Input
-                        id="vint4Email"
-                        type="email"
-                        placeholder="seu@email.com"
-                        value={paymentData.vint4Email || ""}
-                        onChange={(e) => setPaymentData((prev) => ({ ...prev, vint4Email: e.target.value }))}
-                        required
-                      />
-                    </div>
+                {paymentData.method === "mbway" && (
+                  <Alert>
+                    <AlertDescription>
+                      Será redirecionado para autorizar o pagamento na aplicação MB WAY.
+                    </AlertDescription>
+                  </Alert>
+                )}
 
-                    <div className="space-y-2">
-                      <Label htmlFor="vint4BillCity">Cidade *</Label>
-                      <Input
-                        id="vint4BillCity"
-                        placeholder="Praia"
-                        value={paymentData.vint4BillCity || ""}
-                        onChange={(e) => setPaymentData((prev) => ({ ...prev, vint4BillCity: e.target.value }))}
-                        required
-                      />
-                    </div>
+                {paymentData.method === "paypal" && (
+                  <Alert>
+                    <AlertDescription>Será redirecionado para o PayPal para completar o pagamento.</AlertDescription>
+                  </Alert>
+                )}
 
-                    <div className="space-y-2">
-                      <Label htmlFor="vint4BillAddress">Endereço *</Label>
-                      <Input
-                        id="vint4BillAddress"
-                        placeholder="Rua, Avenida, etc."
-                        value={paymentData.vint4BillAddress || ""}
-                        onChange={(e) => setPaymentData((prev) => ({ ...prev, vint4BillAddress: e.target.value }))}
-                        required
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="vint4PostalCode">Código Postal *</Label>
-                      <Input
-                        id="vint4PostalCode"
-                        placeholder="0000"
-                        value={paymentData.vint4PostalCode || ""}
-                        onChange={(e) => setPaymentData((prev) => ({ ...prev, vint4PostalCode: e.target.value }))}
-                        required
-                      />
-                    </div>
-
-                    <Alert>
-                      <AlertDescription>
-                        Será redirecionado para o sistema seguro Vinti4 onde irá inserir os dados do seu cartão e
-                        autenticar com OTP.
-                      </AlertDescription>
-                    </Alert>
-                  </div>
+                {paymentData.method === "card" && (
+                  <Alert>
+                    <AlertDescription>
+                      Será redirecionado para uma página segura para inserir os dados do cartão.
+                    </AlertDescription>
+                  </Alert>
                 )}
 
                 {error && (
@@ -440,7 +330,7 @@ export default function CheckoutPage() {
                 )}
 
                 <Button type="submit" className="w-full" disabled={isProcessing}>
-                  {isProcessing ? "A processar pagamento..." : `Pagar ${totalAmount.toFixed(0)} CVE`}
+                  {isProcessing ? "A processar pagamento..." : `Seguir com a Compra - ${totalAmount.toFixed(0)} CVE`}
                 </Button>
               </form>
             </CardContent>

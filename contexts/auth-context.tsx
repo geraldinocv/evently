@@ -2,9 +2,7 @@
 
 import type React from "react"
 import { createContext, useContext, useEffect, useState } from "react"
-import { createClient } from "@supabase/supabase-js"
-
-const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
+import { createClient } from "@/lib/supabase/client"
 
 interface User {
   id: string
@@ -19,8 +17,6 @@ interface AuthState {
 }
 
 interface AuthContextType extends AuthState {
-  signIn: (email: string, password: string) => Promise<boolean>
-  signUp: (email: string, password: string, name: string) => Promise<boolean>
   signOut: () => Promise<void>
 }
 
@@ -33,6 +29,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     isAuthenticated: false,
   })
 
+  const supabase = createClient()
+
   useEffect(() => {
     const getSession = async () => {
       const {
@@ -42,27 +40,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (session?.user) {
         const { data: profile } = await supabase.from("profiles").select("*").eq("user_id", session.user.id).single()
 
-        if (profile) {
-          setAuthState({
-            user: {
-              id: session.user.id,
-              email: session.user.email!,
-              name: profile.name || session.user.email!,
-            },
-            isLoading: false,
-            isAuthenticated: true,
-          })
-        } else {
-          setAuthState({
-            user: {
-              id: session.user.id,
-              email: session.user.email!,
-              name: session.user.email!,
-            },
-            isLoading: false,
-            isAuthenticated: true,
-          })
-        }
+        setAuthState({
+          user: {
+            id: session.user.id,
+            email: session.user.email!,
+            name: profile?.name || session.user.email!,
+          },
+          isLoading: false,
+          isAuthenticated: true,
+        })
       } else {
         setAuthState((prev) => ({ ...prev, isLoading: false }))
       }
@@ -76,27 +62,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (session?.user) {
         const { data: profile } = await supabase.from("profiles").select("*").eq("user_id", session.user.id).single()
 
-        if (profile) {
-          setAuthState({
-            user: {
-              id: session.user.id,
-              email: session.user.email!,
-              name: profile.name || session.user.email!,
-            },
-            isLoading: false,
-            isAuthenticated: true,
-          })
-        } else {
-          setAuthState({
-            user: {
-              id: session.user.id,
-              email: session.user.email!,
-              name: session.user.email!,
-            },
-            isLoading: false,
-            isAuthenticated: true,
-          })
-        }
+        setAuthState({
+          user: {
+            id: session.user.id,
+            email: session.user.email!,
+            name: profile?.name || session.user.email!,
+          },
+          isLoading: false,
+          isAuthenticated: true,
+        })
       } else {
         setAuthState({
           user: null,
@@ -107,61 +81,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     })
 
     return () => subscription.unsubscribe()
-  }, [])
-
-  const handleSignIn = async (email: string, password: string): Promise<boolean> => {
-    try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      })
-
-      if (error) {
-        console.error("Login error:", error.message)
-        return false
-      }
-
-      return !!data.user
-    } catch (error) {
-      console.error("Login error:", error)
-      return false
-    }
-  }
-
-  const handleSignUp = async (email: string, password: string, name: string): Promise<boolean> => {
-    try {
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          emailRedirectTo: process.env.NEXT_PUBLIC_DEV_SUPABASE_REDIRECT_URL || window.location.origin,
-        },
-      })
-
-      if (error) {
-        console.error("Signup error:", error.message)
-        return false
-      }
-
-      if (data.user) {
-        const { error: profileError } = await supabase.from("profiles").insert({
-          user_id: data.user.id,
-          name: name,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        })
-
-        if (profileError) {
-          console.error("Profile creation error:", profileError.message)
-        }
-      }
-
-      return true
-    } catch (error) {
-      console.error("Signup error:", error)
-      return false
-    }
-  }
+  }, [supabase])
 
   const handleSignOut = async (): Promise<void> => {
     await supabase.auth.signOut()
@@ -171,8 +91,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     <AuthContext.Provider
       value={{
         ...authState,
-        signIn: handleSignIn,
-        signUp: handleSignUp,
         signOut: handleSignOut,
       }}
     >

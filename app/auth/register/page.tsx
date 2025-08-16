@@ -1,106 +1,36 @@
 "use client"
 
-import type React from "react"
-import { useState } from "react"
-import { useRouter } from "next/navigation"
+import { useActionState } from "react"
+import { useFormStatus } from "react-dom"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Ticket, CheckCircle } from "lucide-react"
-import { createClient } from "@supabase/supabase-js"
+import { Ticket, Loader2, CheckCircle } from "lucide-react"
+import { signUp } from "@/lib/auth/actions"
 
-type UserRole = "organizer" | "rp"
+function SubmitButton() {
+  const { pending } = useFormStatus()
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  return (
+    <Button type="submit" disabled={pending} className="w-full">
+      {pending ? (
+        <>
+          <Loader2 className="mr-2 h-4 w-4 animate-spin" />A criar conta...
+        </>
+      ) : (
+        "Criar Conta"
+      )}
+    </Button>
+  )
+}
 
 export default function RegisterPage() {
-  const [formData, setFormData] = useState({
-    name: "",
-    email: "",
-    password: "",
-    confirmPassword: "",
-    role: "" as UserRole | "",
-  })
-  const [error, setError] = useState("")
-  const [isLoading, setIsLoading] = useState(false)
-  const [isSuccess, setIsSuccess] = useState(false)
+  const [state, formAction] = useActionState(signUp, null)
 
-  const router = useRouter()
-  const supabase = createClient(supabaseUrl, supabaseAnonKey)
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setError("")
-
-    if (formData.password !== formData.confirmPassword) {
-      setError("As palavras-passe não coincidem")
-      return
-    }
-
-    if (!formData.role) {
-      setError("Selecione um tipo de conta")
-      return
-    }
-
-    if (formData.password.length < 6) {
-      setError("A palavra-passe deve ter pelo menos 6 caracteres")
-      return
-    }
-
-    setIsLoading(true)
-
-    try {
-      const { data, error: signUpError } = await supabase.auth.signUp({
-        email: formData.email,
-        password: formData.password,
-        options: {
-          data: {
-            name: formData.name,
-            role: formData.role,
-          },
-        },
-      })
-
-      if (signUpError) {
-        if (signUpError.message.includes("already registered")) {
-          setError("Já existe uma conta com este email")
-        } else {
-          setError(signUpError.message)
-        }
-        return
-      }
-
-      if (data.user) {
-        const { error: profileError } = await supabase.from("profiles").insert({
-          id: data.user.id,
-          name: formData.name,
-          email: formData.email,
-          role: formData.role,
-          approval_status: "pending",
-        })
-
-        if (profileError) {
-          console.error("Profile creation error:", profileError)
-          // Continue even if profile creation fails
-        }
-      }
-
-      console.log("[v0] Account created successfully for:", formData.email)
-      setIsSuccess(true)
-    } catch (error) {
-      console.error("Registration error:", error)
-      setError("Erro ao criar conta. Tente novamente.")
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
-  if (isSuccess) {
+  if (state?.success) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
         <Card className="w-full max-w-md">
@@ -109,15 +39,10 @@ export default function RegisterPage() {
               <CheckCircle className="h-12 w-12 text-green-600" />
             </div>
             <CardTitle className="text-2xl text-green-600">Conta Criada!</CardTitle>
-            <CardDescription>Sua conta foi criada com sucesso</CardDescription>
+            <CardDescription>Verifique seu email para confirmar a conta</CardDescription>
           </CardHeader>
           <CardContent className="text-center space-y-4">
-            <p className="text-gray-600">
-              Conta criada para <strong>{formData.email}</strong>
-            </p>
-            <p className="text-sm text-gray-500">
-              Sua conta está pendente de aprovação pela equipa Evently. Receberá um email quando for aprovada.
-            </p>
+            <p className="text-gray-600">{state.success}</p>
             <div className="pt-4">
               <Link href="/auth/login">
                 <Button className="w-full">Fazer Login</Button>
@@ -140,77 +65,29 @@ export default function RegisterPage() {
           <CardDescription>Junte-se à Evently e comece a gerir seus eventos</CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form action={formAction} className="space-y-4">
+            {state?.error && (
+              <Alert variant="destructive">
+                <AlertDescription>{state.error}</AlertDescription>
+              </Alert>
+            )}
+
             <div className="space-y-2">
               <Label htmlFor="name">Nome Completo</Label>
-              <Input
-                id="name"
-                value={formData.name}
-                onChange={(e) => setFormData((prev) => ({ ...prev, name: e.target.value }))}
-                required
-                placeholder="Seu nome completo"
-              />
+              <Input id="name" name="name" required placeholder="Seu nome completo" />
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                value={formData.email}
-                onChange={(e) => setFormData((prev) => ({ ...prev, email: e.target.value }))}
-                required
-                placeholder="seu@email.com"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="role">Tipo de Conta</Label>
-              <Select onValueChange={(value: UserRole) => setFormData((prev) => ({ ...prev, role: value }))}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione o tipo de conta" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="organizer">Organizador de Eventos</SelectItem>
-                  <SelectItem value="rp">Representante de Vendas (RP)</SelectItem>
-                </SelectContent>
-              </Select>
+              <Input id="email" name="email" type="email" required placeholder="seu@email.com" />
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="password">Palavra-passe</Label>
-              <Input
-                id="password"
-                type="password"
-                value={formData.password}
-                onChange={(e) => setFormData((prev) => ({ ...prev, password: e.target.value }))}
-                required
-                placeholder="••••••••"
-                minLength={6}
-              />
+              <Input id="password" name="password" type="password" required placeholder="••••••••" minLength={6} />
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="confirmPassword">Confirmar Palavra-passe</Label>
-              <Input
-                id="confirmPassword"
-                type="password"
-                value={formData.confirmPassword}
-                onChange={(e) => setFormData((prev) => ({ ...prev, confirmPassword: e.target.value }))}
-                required
-                placeholder="••••••••"
-              />
-            </div>
-
-            {error && (
-              <Alert variant="destructive">
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            )}
-
-            <Button type="submit" className="w-full" disabled={isLoading}>
-              {isLoading ? "A criar conta..." : "Criar Conta"}
-            </Button>
+            <SubmitButton />
           </form>
 
           <div className="mt-6 text-center text-sm">
