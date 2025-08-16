@@ -5,36 +5,28 @@ import { Card, CardDescription, CardHeader, CardTitle, CardContent } from "@/com
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel"
 import { Badge } from "@/components/ui/badge"
 import { Ticket, Users, QrCode, BarChart3, Calendar, MapPin, Euro } from "lucide-react"
-
-const mockEvents = [
-  {
-    id: "1",
-    title: "Festival de Verão 2025",
-    description: "O maior festival de música do verão",
-    date: "2025-12-15T20:00:00",
-    location: "Parque da Cidade, Lisboa",
-    imageUrl: "/summer-music-festival.png",
-    ticketTypes: [
-      { id: "1", name: "Geral", price: 25, quantity: 500 },
-      { id: "2", name: "VIP", price: 75, quantity: 100 },
-    ],
-  },
-  {
-    id: "2",
-    title: "Conferência Tech Lisboa",
-    description: "Conferência sobre as últimas tendências em tecnologia",
-    date: "2025-11-20T09:00:00",
-    location: "Centro de Congressos, Lisboa",
-    imageUrl: "/tech-conference-audience-screens.png",
-    ticketTypes: [
-      { id: "3", name: "Standard", price: 50, quantity: 200 },
-      { id: "4", name: "Premium", price: 120, quantity: 50 },
-    ],
-  },
-]
+import { getEvents } from "@/lib/events/actions"
+import { useState, useEffect } from "react"
 
 export default function HomePage() {
-  const upcomingEvents = mockEvents.filter((event) => new Date(event.date) > new Date()).slice(0, 6)
+  const [events, setEvents] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    async function fetchEvents() {
+      try {
+        const eventsData = await getEvents()
+        setEvents(eventsData)
+      } catch (error) {
+        console.error("Error fetching events:", error)
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchEvents()
+  }, [])
+
+  const upcomingEvents = events.filter((event) => new Date(event.date) > new Date()).slice(0, 6)
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
@@ -101,7 +93,11 @@ export default function HomePage() {
           </Card>
         </div>
 
-        {upcomingEvents.length > 0 && (
+        {loading ? (
+          <div className="text-center mb-16">
+            <p className="text-gray-600">A carregar eventos...</p>
+          </div>
+        ) : upcomingEvents.length > 0 ? (
           <div className="mb-16">
             <div className="text-center mb-8">
               <h3 className="text-3xl font-bold text-gray-900 mb-4">Eventos em Destaque</h3>
@@ -115,7 +111,7 @@ export default function HomePage() {
                     <Card className="h-full hover:shadow-lg transition-shadow">
                       <div className="aspect-video relative overflow-hidden rounded-t-lg">
                         <img
-                          src={event.imageUrl || "/placeholder.svg"}
+                          src={event.image_url || "/placeholder.svg?height=200&width=400&query=event poster"}
                           alt={event.title}
                           className="w-full h-full object-cover"
                         />
@@ -140,11 +136,11 @@ export default function HomePage() {
                           </div>
                           <div className="flex items-center gap-2">
                             <Euro className="h-4 w-4" />
-                            <span>A partir de €{Math.min(...event.ticketTypes.map((t) => t.price))}</span>
+                            <span>€{event.price}</span>
                           </div>
                         </div>
                         <Button asChild className="w-full">
-                          <Link href={`/events/${event.id}`}>Ver Detalhes</Link>
+                          <Link href={`/events/${event.id}/checkout`}>Comprar Bilhete</Link>
                         </Button>
                       </CardContent>
                     </Card>
@@ -154,12 +150,14 @@ export default function HomePage() {
               <CarouselPrevious />
               <CarouselNext />
             </Carousel>
-
-            <div className="text-center mt-8">
-              <Button variant="outline" size="lg" asChild>
-                <Link href="/events">Ver Todos os Eventos</Link>
-              </Button>
-            </div>
+          </div>
+        ) : (
+          <div className="text-center mb-16">
+            <h3 className="text-2xl font-bold text-gray-900 mb-4">Nenhum evento disponível</h3>
+            <p className="text-gray-600 mb-6">Seja o primeiro a criar um evento na nossa plataforma!</p>
+            <Button asChild>
+              <Link href="/auth/register">Criar Evento</Link>
+            </Button>
           </div>
         )}
 
