@@ -1,24 +1,44 @@
-import { neon } from "@neondatabase/serverless"
+import { createClient } from "@supabase/supabase-js"
 
-let sql: ReturnType<typeof neon> | null = null
+let supabaseClient: ReturnType<typeof createClient> | null = null
 
 function getConnection() {
-  if (!sql) {
-    const databaseUrl = process.env.DATABASE_URL
+  if (!supabaseClient) {
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 
-    if (!databaseUrl) {
-      console.warn("DATABASE_URL environment variable is not set - using fallback data")
+    if (!supabaseUrl || !supabaseKey) {
+      console.warn("Supabase environment variables are not set - using fallback data")
       return null
     }
 
-    sql = neon(databaseUrl)
+    supabaseClient = createClient(supabaseUrl, supabaseKey)
   }
 
-  return sql
+  return supabaseClient
 }
 
 export { getConnection }
-export { getConnection as sql }
+export const sql = async (query: string, params: any[] = []) => {
+  const client = getConnection()
+  if (!client) {
+    return null
+  }
+
+  // Convert PostgreSQL parameterized query to Supabase format
+  let supabaseQuery = query
+  params.forEach((param, index) => {
+    supabaseQuery = supabaseQuery.replace(`$${index + 1}`, `'${param}'`)
+  })
+
+  const { data, error } = await client.rpc("execute_sql", { query: supabaseQuery })
+
+  if (error) {
+    throw error
+  }
+
+  return data
+}
 
 // Helper functions for common queries
 export async function executeQuery<T = any>(query: string, params: any[] = []): Promise<T[]> {

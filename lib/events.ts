@@ -302,18 +302,17 @@ export async function createEvent(data: CreateEventData, organizerId: string): P
 
     // Insert event
     const eventResult = await connection(
-      `INSERT INTO evently.events (title, description, date, location, category, organizer_id, image_url, currency)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      `INSERT INTO public.events (title, description, date, location, organizer_id, image_url, price)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
        RETURNING *`,
       [
         data.title,
         data.description,
         data.date.toISOString(),
         data.location,
-        data.category,
-        organizerId,
+        Number.parseInt(organizerId),
         data.imageUrl || null,
-        data.currency,
+        data.ticketTypes[0]?.price || 0, // Use first ticket type price as event price
       ],
     )
 
@@ -323,10 +322,10 @@ export async function createEvent(data: CreateEventData, organizerId: string): P
     const ticketTypes = await Promise.all(
       data.ticketTypes.map(async (tt) => {
         const result = await connection(
-          `INSERT INTO evently.ticket_types (event_id, name, price, quantity, currency)
-           VALUES ($1, $2, $3, $4, $5)
+          `INSERT INTO public.ticket_types (event_id, name, price, quantity, currency, sold)
+           VALUES ($1, $2, $3, $4, $5, $6)
            RETURNING *`,
-          [event.id, tt.name, tt.price, tt.quantity, tt.currency],
+          [event.id, tt.name, tt.price, tt.quantity, tt.currency, 0],
         )
         return {
           id: result[0].id,
@@ -341,17 +340,17 @@ export async function createEvent(data: CreateEventData, organizerId: string): P
     )
 
     return {
-      id: event.id,
+      id: event.id.toString(),
       title: event.title,
       description: event.description || "",
       date: new Date(event.date),
       location: event.location,
       address: event.location,
-      organizerId: event.organizer_id,
-      status: event.status,
+      organizerId: event.organizer_id.toString(),
+      status: "active" as const,
       soldTickets: 0,
-      category: event.category,
-      currency: event.currency,
+      category: data.category,
+      currency: data.currency,
       ticketTypes,
       createdAt: new Date(event.created_at),
       updatedAt: new Date(event.updated_at),
