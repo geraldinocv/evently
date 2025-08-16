@@ -172,27 +172,4 @@ export async function validateTicket(
   }
 }
 
-async function sendTicketEmail(tickets: Ticket[]): Promise<void> {
-  // Mock email sending
-  console.log(`[MOCK EMAIL] Sending ${tickets.length} ticket(s) to ${tickets[0].customerEmail}`)
-  console.log("Email content would include:")
-  tickets.forEach((ticket) => {
-    console.log(`- Ticket ID: ${ticket.id}`)
-    console.log(`- QR Code: ${ticket.qrCode}`)
-    console.log(`- Event: ${ticket.eventTitle}`)
-    console.log(`- Link: ${window.location.origin}/ticket/${ticket.uniqueLink}`) // Added link
-  })
-}
-
-async function sendTicketSMS(tickets: Ticket[]): Promise<void> {
-  // Mock SMS sending
-  console.log(`[MOCK SMS] Sending ${tickets.length} ticket link(s) to ${tickets[0].customerPhone}`)
-  console.log("SMS content would include:")
-  tickets.forEach((ticket) => {
-    console.log(`- Event: ${ticket.eventTitle}`)
-    console.log(`- Link: ${window.location.origin}/ticket/${ticket.uniqueLink}`)
-    console.log(
-      `- Message: "Seu bilhete para ${ticket.eventTitle}: ${window.location.origin}/ticket/${ticket.uniqueLink}"`,
-    )
-  })
-}
+import { sendTicketEmail, sendTicketSMS } from "./email"

@@ -1,34 +1,40 @@
 "use client"
-
-import { useState, useEffect } from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardDescription, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel"
 import { Badge } from "@/components/ui/badge"
 import { Ticket, Users, QrCode, BarChart3, Calendar, MapPin, Euro } from "lucide-react"
-import { getEvents, type Event } from "@/lib/events"
+
+const mockEvents = [
+  {
+    id: "1",
+    title: "Festival de Verão 2025",
+    description: "O maior festival de música do verão",
+    date: "2025-12-15T20:00:00",
+    location: "Parque da Cidade, Lisboa",
+    imageUrl: "/summer-music-festival.png",
+    ticketTypes: [
+      { id: "1", name: "Geral", price: 25, quantity: 500 },
+      { id: "2", name: "VIP", price: 75, quantity: 100 },
+    ],
+  },
+  {
+    id: "2",
+    title: "Conferência Tech Lisboa",
+    description: "Conferência sobre as últimas tendências em tecnologia",
+    date: "2025-11-20T09:00:00",
+    location: "Centro de Congressos, Lisboa",
+    imageUrl: "/tech-conference-audience-screens.png",
+    ticketTypes: [
+      { id: "3", name: "Standard", price: 50, quantity: 200 },
+      { id: "4", name: "Premium", price: 120, quantity: 50 },
+    ],
+  },
+]
 
 export default function HomePage() {
-  const [events, setEvents] = useState<Event[]>([])
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    const loadEvents = async () => {
-      try {
-        const eventsData = await getEvents()
-        setEvents(eventsData)
-      } catch (error) {
-        console.error("Error loading events:", error)
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    loadEvents()
-  }, [])
-
-  const upcomingEvents = events.filter((event) => new Date(event.date) > new Date()).slice(0, 6)
+  const upcomingEvents = mockEvents.filter((event) => new Date(event.date) > new Date()).slice(0, 6)
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
@@ -95,7 +101,7 @@ export default function HomePage() {
           </Card>
         </div>
 
-        {!loading && upcomingEvents.length > 0 && (
+        {upcomingEvents.length > 0 && (
           <div className="mb-16">
             <div className="text-center mb-8">
               <h3 className="text-3xl font-bold text-gray-900 mb-4">Eventos em Destaque</h3>
