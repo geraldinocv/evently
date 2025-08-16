@@ -1,11 +1,9 @@
 "use client"
 
 import type React from "react"
-
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import type { UserRole } from "@/lib/auth"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -13,7 +11,12 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Ticket, CheckCircle } from "lucide-react"
-import { getConnection } from "@/lib/database"
+import { createClient } from "@supabase/supabase-js"
+
+type UserRole = "organizer" | "rp"
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 
 export default function RegisterPage() {
   const [formData, setFormData] = useState({
@@ -28,6 +31,7 @@ export default function RegisterPage() {
   const [isSuccess, setIsSuccess] = useState(false)
 
   const router = useRouter()
+  const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -51,32 +55,42 @@ export default function RegisterPage() {
     setIsLoading(true)
 
     try {
-      const sql = getConnection()
+      const { data, error: signUpError } = await supabase.auth.signUp({
+        email: formData.email,
+        password: formData.password,
+        options: {
+          data: {
+            name: formData.name,
+            role: formData.role,
+          },
+        },
+      })
 
-      if (!sql) {
-        console.log("[v0] Database not available, using mock registration")
-        setIsSuccess(true)
+      if (signUpError) {
+        if (signUpError.message.includes("already registered")) {
+          setError("Já existe uma conta com este email")
+        } else {
+          setError(signUpError.message)
+        }
         return
       }
 
-      const existingUser = await sql`
-        SELECT id FROM users WHERE email = ${formData.email}
-      `
+      if (data.user) {
+        const { error: profileError } = await supabase.from("profiles").insert({
+          id: data.user.id,
+          name: formData.name,
+          email: formData.email,
+          role: formData.role,
+          approval_status: "pending",
+        })
 
-      if (existingUser.length > 0) {
-        setError("Já existe uma conta com este email")
-        return
+        if (profileError) {
+          console.error("Profile creation error:", profileError)
+          // Continue even if profile creation fails
+        }
       }
-
-      const hashedPassword = btoa(formData.password)
-
-      await sql`
-        INSERT INTO users (name, email, password, role, is_verified, created_at)
-        VALUES (${formData.name}, ${formData.email}, ${hashedPassword}, ${formData.role}, true, NOW())
-      `
 
       console.log("[v0] Account created successfully for:", formData.email)
-
       setIsSuccess(true)
     } catch (error) {
       console.error("Registration error:", error)
@@ -101,7 +115,9 @@ export default function RegisterPage() {
             <p className="text-gray-600">
               Conta criada para <strong>{formData.email}</strong>
             </p>
-            <p className="text-sm text-gray-500">Sua conta está ativa e pronta para usar.</p>
+            <p className="text-sm text-gray-500">
+              Sua conta está pendente de aprovação pela equipa Evently. Receberá um email quando for aprovada.
+            </p>
             <div className="pt-4">
               <Link href="/auth/login">
                 <Button className="w-full">Fazer Login</Button>
