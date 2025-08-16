@@ -5,7 +5,7 @@ import { Card, CardDescription, CardHeader, CardTitle, CardContent } from "@/com
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel"
 import { Badge } from "@/components/ui/badge"
 import { Ticket, Users, QrCode, BarChart3, Calendar, MapPin, Euro } from "lucide-react"
-import { getEvents } from "@/lib/events/actions"
+import { getPublicEvents } from "@/lib/events/actions"
 import { useState, useEffect } from "react"
 
 export default function HomePage() {
@@ -15,7 +15,7 @@ export default function HomePage() {
   useEffect(() => {
     async function fetchEvents() {
       try {
-        const eventsData = await getEvents()
+        const eventsData = await getPublicEvents()
         setEvents(eventsData)
       } catch (error) {
         console.error("Error fetching events:", error)

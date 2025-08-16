@@ -81,6 +81,26 @@ export async function createEvent(prevState: any, formData: FormData) {
   }
 }
 
+export async function getPublicEvents() {
+  try {
+    const cookieStore = cookies()
+    const supabase = createServerActionClient({ cookies: () => cookieStore })
+
+    // Use service role or public access for fetching events
+    const { data, error } = await supabase.from("events").select("*").order("created_at", { ascending: false })
+
+    if (error) {
+      console.error("Error fetching public events:", error)
+      return []
+    }
+
+    return data || []
+  } catch (error) {
+    console.error("Server error fetching public events:", error)
+    return []
+  }
+}
+
 export async function getEvents() {
   try {
     const cookieStore = cookies()
