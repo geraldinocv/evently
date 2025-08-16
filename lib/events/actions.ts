@@ -1,80 +1,106 @@
 "use server"
 
-import { createServerActionClient } from "@supabase/auth-helpers-nextjs"
+import { createServerClient } from "@supabase/ssr"
 import { cookies } from "next/headers"
 import { revalidatePath } from "next/cache"
+
+function createSupabaseServerClient() {
+  const cookieStore = cookies()
+  return createServerClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_ANON_KEY!, {
+    cookies: {
+      get(name: string) {
+        return cookieStore.get(name)?.value
+      },
+    },
+  })
+}
 
 export async function createEvent(prevState: any, formData: FormData) {
   try {
     console.log("[v0] Creating event with form data:", Object.fromEntries(formData))
 
-    const cookieStore = cookies()
-    const supabase = createServerActionClient({ cookies: () => cookieStore })
-
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser()
-
-    if (authError || !user) {
-      console.log("[v0] Authentication failed:", authError)
-      return { error: "Usuário não autenticado" }
-    }
+    const supabase = createSupabaseServerClient()
 
     const title = formData.get("title")?.toString()
     const description = formData.get("description")?.toString()
     const date = formData.get("date")?.toString()
     const location = formData.get("location")?.toString()
-    const price = Number.parseFloat(formData.get("price")?.toString() || "0")
     const maxAttendees = Number.parseInt(formData.get("maxAttendees")?.toString() || "0")
-    const imageUrl = formData.get("imageUrl")?.toString()
+    const organizerId = formData.get("organizerId")?.toString()
 
-    if (!title || !description || !date || !location) {
+    if (!title || !description || !date || !location || !organizerId) {
       console.log("[v0] Validation failed: missing required fields")
       return { error: "Todos os campos obrigatórios devem ser preenchidos" }
     }
 
-    const { data: profile, error: profileError } = await supabase
-      .from("profiles")
-      .select("id")
-      .eq("email", user.email)
-      .single()
+    const ticketTypes: any[] = []
+    let index = 0
+    while (formData.get(`ticketTypes[${index}][name]`)) {
+      const ticketType = {
+        name: formData.get(`ticketTypes[${index}][name]`)?.toString(),
+        price: Number.parseFloat(formData.get(`ticketTypes[${index}][price]`)?.toString() || "0"),
+        quantity: Number.parseInt(formData.get(`ticketTypes[${index}][quantity]`)?.toString() || "0"),
+        description: formData.get(`ticketTypes[${index}][description]`)?.toString() || "",
+      }
+      if (ticketType.name && ticketType.price > 0 && ticketType.quantity > 0) {
+        ticketTypes.push(ticketType)
+      }
+      index++
+    }
 
-    if (profileError || !profile) {
-      console.log("[v0] User profile not found:", profileError)
-      return { error: "Perfil de usuário não encontrado" }
+    if (ticketTypes.length === 0) {
+      return { error: "Pelo menos um tipo de bilhete deve ser configurado" }
     }
 
     console.log("[v0] Inserting event into database...")
 
-    const { data, error } = await supabase
+    const { data: eventData, error: eventError } = await supabase
       .from("events")
       .insert({
         title,
         description,
         date,
         location,
-        price,
+        price: ticketTypes[0].price, // Use first ticket type price as base price
         max_attendees: maxAttendees,
-        image_url: imageUrl || null,
-        organizer_id: profile.id,
+        image_url: null, // Will be updated with file upload later
+        organizer_id: Number.parseInt(organizerId),
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       })
       .select()
       .single()
 
-    if (error) {
-      console.error("[v0] Database error:", error)
-      return { error: `Erro ao criar evento: ${error.message}` }
+    if (eventError) {
+      console.error("[v0] Database error:", eventError)
+      return { error: `Erro ao criar evento: ${eventError.message}` }
     }
 
-    console.log("[v0] Event created successfully:", data)
+    const ticketTypeInserts = ticketTypes.map((ticket) => ({
+      event_id: eventData.id,
+      name: ticket.name,
+      price: ticket.price,
+      quantity: ticket.quantity,
+      sold: 0,
+      currency: "CVE",
+      created_at: new Date().toISOString(),
+    }))
+
+    const { error: ticketTypesError } = await supabase.from("ticket_types").insert(ticketTypeInserts)
+
+    if (ticketTypesError) {
+      console.error("[v0] Ticket types error:", ticketTypesError)
+      // Rollback event creation if ticket types fail
+      await supabase.from("events").delete().eq("id", eventData.id)
+      return { error: `Erro ao criar tipos de bilhetes: ${ticketTypesError.message}` }
+    }
+
+    console.log("[v0] Event and ticket types created successfully:", eventData)
 
     revalidatePath("/")
     revalidatePath("/dashboard/events")
 
-    return { success: "Evento criado com sucesso!", eventId: data.id }
+    return { success: "Evento criado com sucesso!", eventId: eventData.id }
   } catch (error) {
     console.error("[v0] Server error:", error)
     return { error: "Erro interno do servidor" }
@@ -83,11 +109,26 @@ export async function createEvent(prevState: any, formData: FormData) {
 
 export async function getPublicEvents() {
   try {
-    const cookieStore = cookies()
-    const supabase = createServerActionClient({ cookies: () => cookieStore })
+    const supabase = createSupabaseServerClient()
 
-    // Use service role or public access for fetching events
-    const { data, error } = await supabase.from("events").select("*").order("created_at", { ascending: false })
+    const { data, error } = await supabase
+      .from("events")
+      .select(`
+        *,
+        profiles!events_organizer_id_fkey (
+          name,
+          email
+        ),
+        ticket_types (
+          id,
+          name,
+          price,
+          quantity,
+          sold,
+          currency
+        )
+      `)
+      .order("created_at", { ascending: false })
 
     if (error) {
       console.error("Error fetching public events:", error)
@@ -103,8 +144,7 @@ export async function getPublicEvents() {
 
 export async function getEvents() {
   try {
-    const cookieStore = cookies()
-    const supabase = createServerActionClient({ cookies: () => cookieStore })
+    const supabase = createSupabaseServerClient()
 
     const { data, error } = await supabase.from("events").select("*").order("created_at", { ascending: false })
 
@@ -122,7 +162,7 @@ export async function getEvents() {
 
 export async function purchaseTicket(prevState: any, formData: FormData) {
   try {
-    const supabase = createServerActionClient({ cookies: () => cookies() })
+    const supabase = createSupabaseServerClient()
 
     const eventId = Number.parseInt(formData.get("eventId")?.toString() || "0")
     const quantity = Number.parseInt(formData.get("quantity")?.toString() || "1")
@@ -177,7 +217,7 @@ export async function purchaseTicket(prevState: any, formData: FormData) {
 
 export async function getUserTickets(userEmail: string) {
   try {
-    const supabase = createServerActionClient({ cookies: () => cookies() })
+    const supabase = createSupabaseServerClient()
 
     const { data, error } = await supabase
       .from("tickets")

@@ -13,7 +13,15 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Ticket, ArrowLeft, ImageIcon, Upload } from "lucide-react"
+import { Ticket, ArrowLeft, ImageIcon, Upload, Plus, Trash2 } from "lucide-react"
+
+interface TicketType {
+  id: string
+  name: string
+  price: string
+  quantity: string
+  description: string
+}
 
 export default function CreateEventPage() {
   const { user } = useAuth()
@@ -25,12 +33,21 @@ export default function CreateEventPage() {
     description: "",
     date: "",
     location: "",
-    price: "",
     maxAttendees: "",
   })
 
   const [imageFile, setImageFile] = useState<File | null>(null)
   const [imagePreview, setImagePreview] = useState<string>("")
+
+  const [ticketTypes, setTicketTypes] = useState<TicketType[]>([
+    {
+      id: "1",
+      name: "Geral",
+      price: "",
+      quantity: "",
+      description: "Bilhete de entrada geral",
+    },
+  ])
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -42,6 +59,27 @@ export default function CreateEventPage() {
       }
       reader.readAsDataURL(file)
     }
+  }
+
+  const addTicketType = () => {
+    const newTicketType: TicketType = {
+      id: Date.now().toString(),
+      name: "",
+      price: "",
+      quantity: "",
+      description: "",
+    }
+    setTicketTypes([...ticketTypes, newTicketType])
+  }
+
+  const removeTicketType = (id: string) => {
+    if (ticketTypes.length > 1) {
+      setTicketTypes(ticketTypes.filter((ticket) => ticket.id !== id))
+    }
+  }
+
+  const updateTicketType = (id: string, field: keyof TicketType, value: string) => {
+    setTicketTypes(ticketTypes.map((ticket) => (ticket.id === id ? { ...ticket, [field]: value } : ticket)))
   }
 
   React.useEffect(() => {
@@ -72,6 +110,15 @@ export default function CreateEventPage() {
       <main className="container mx-auto px-4 py-8 max-w-4xl">
         <form action={formAction} className="space-y-8">
           <input type="hidden" name="organizerId" value={user?.id || "1"} />
+
+          {ticketTypes.map((ticket, index) => (
+            <div key={ticket.id}>
+              <input type="hidden" name={`ticketTypes[${index}][name]`} value={ticket.name} />
+              <input type="hidden" name={`ticketTypes[${index}][price]`} value={ticket.price} />
+              <input type="hidden" name={`ticketTypes[${index}][quantity]`} value={ticket.quantity} />
+              <input type="hidden" name={`ticketTypes[${index}][description]`} value={ticket.description} />
+            </div>
+          ))}
 
           {/* Basic Information */}
           <Card>
@@ -198,6 +245,81 @@ export default function CreateEventPage() {
                   placeholder="Ex: Pavilhão Atlântico, Lisboa"
                 />
               </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Ticket className="h-5 w-5" />
+                Tipos de Bilhetes
+              </CardTitle>
+              <CardDescription>Configure os diferentes tipos de bilhetes para o seu evento</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {ticketTypes.map((ticket, index) => (
+                <div key={ticket.id} className="p-4 border rounded-lg space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h4 className="font-medium">Bilhete {index + 1}</h4>
+                    {ticketTypes.length > 1 && (
+                      <Button type="button" variant="outline" size="sm" onClick={() => removeTicketType(ticket.id)}>
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
+
+                  <div className="grid md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>Nome do Bilhete *</Label>
+                      <Input
+                        value={ticket.name}
+                        onChange={(e) => updateTicketType(ticket.id, "name", e.target.value)}
+                        placeholder="Ex: VIP, Geral, Estudante"
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Preço (CVE) *</Label>
+                      <Input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={ticket.price}
+                        onChange={(e) => updateTicketType(ticket.id, "price", e.target.value)}
+                        placeholder="1500.00"
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>Quantidade Disponível *</Label>
+                      <Input
+                        type="number"
+                        min="1"
+                        value={ticket.quantity}
+                        onChange={(e) => updateTicketType(ticket.id, "quantity", e.target.value)}
+                        placeholder="100"
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Descrição</Label>
+                      <Input
+                        value={ticket.description}
+                        onChange={(e) => updateTicketType(ticket.id, "description", e.target.value)}
+                        placeholder="Descrição do bilhete"
+                      />
+                    </div>
+                  </div>
+                </div>
+              ))}
+
+              <Button type="button" variant="outline" onClick={addTicketType} className="w-full bg-transparent">
+                <Plus className="h-4 w-4 mr-2" />
+                Adicionar Tipo de Bilhete
+              </Button>
             </CardContent>
           </Card>
 
