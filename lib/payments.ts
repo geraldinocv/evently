@@ -8,7 +8,10 @@ export interface PaymentData {
   cardholderName?: string
   paypalEmail?: string
   mbwayPhone?: string
-  vint4Phone?: string // Added vint4 phone field
+  vint4Email?: string
+  vint4BillCity?: string
+  vint4BillAddress?: string
+  vint4PostalCode?: string
 }
 
 export interface Transaction {
@@ -45,7 +48,7 @@ export const mockTransactions: Transaction[] = [
     customerName: "João Silva",
     customerEmail: "joao@email.com",
     amount: 225,
-    currency: "EUR",
+    currency: "CVE", // Updated default currency to CVE
     paymentMethod: "card",
     status: "completed",
     createdAt: new Date("2025-01-10T14:30:00"),
@@ -59,7 +62,7 @@ export const mockTransactions: Transaction[] = [
     customerName: "Maria Santos",
     customerEmail: "maria@email.com",
     amount: 120,
-    currency: "EUR",
+    currency: "CVE", // Updated default currency to CVE
     paymentMethod: "mbway",
     status: "completed",
     createdAt: new Date("2025-01-12T09:15:00"),
@@ -73,7 +76,7 @@ export const mockTransactions: Transaction[] = [
     customerName: "Pedro Oliveira",
     customerEmail: "pedro@email.com",
     amount: 360,
-    currency: "EUR",
+    currency: "CVE", // Updated default currency to CVE
     paymentMethod: "paypal",
     status: "failed",
     createdAt: new Date("2025-01-08T16:45:00"),
@@ -85,17 +88,52 @@ export const mockTransactions: Transaction[] = [
 export async function processPayment(
   paymentData: PaymentData,
   amount: number,
-  customerInfo: { name: string; email: string },
+  customerInfo: { name: string; email: string; phone?: string },
   eventInfo: { id: string; title: string },
   rpId?: string,
 ): Promise<PaymentResult> {
-  // Mock payment processing
+  if (paymentData.method === "vint4") {
+    try {
+      const { createVinti4PaymentForm } = await import("./payments/vinti4")
+
+      const merchantRef = `EVT${Date.now()}`
+      const merchantSession = `SES${Date.now()}`
+
+      const formHtml = createVinti4PaymentForm({
+        amount,
+        merchantRef,
+        merchantSession,
+        email: paymentData.vint4Email!,
+        billAddrCity: paymentData.vint4BillCity!,
+        billAddrLine1: paymentData.vint4BillAddress!,
+        billAddrPostCode: paymentData.vint4PostalCode!,
+        customerName: customerInfo.name,
+        eventTitle: eventInfo.title,
+      })
+
+      const blob = new Blob([formHtml], { type: "text/html" })
+      const formUrl = URL.createObjectURL(blob)
+
+      window.location.href = formUrl
+
+      return {
+        success: true,
+        transactionId: merchantRef,
+        redirectUrl: formUrl,
+      }
+    } catch (error) {
+      console.error("Erro ao processar pagamento Vinti4:", error)
+      return {
+        success: false,
+        error: "Erro ao inicializar pagamento Vinti4",
+      }
+    }
+  }
+
   await new Promise((resolve) => setTimeout(resolve, 2000))
 
-  // Simulate different payment outcomes
   const random = Math.random()
 
-  // 90% success rate for demo
   if (random < 0.9) {
     const transactionId = `txn-${Date.now()}`
 
@@ -106,12 +144,12 @@ export async function processPayment(
       customerName: customerInfo.name,
       customerEmail: customerInfo.email,
       amount,
-      currency: "EUR",
+      currency: "CVE",
       paymentMethod: paymentData.method,
       status: "completed",
       createdAt: new Date(),
       completedAt: new Date(),
-      ticketIds: [], // Will be populated after ticket generation
+      ticketIds: [],
       rpId,
     }
 
@@ -122,7 +160,6 @@ export async function processPayment(
       transactionId,
     }
   } else {
-    // Simulate payment failure
     const failureReasons = [
       "Cartão recusado",
       "Fundos insuficientes",
@@ -138,14 +175,12 @@ export async function processPayment(
 }
 
 export async function getTransaction(id: string): Promise<Transaction | null> {
-  // Mock API call
   await new Promise((resolve) => setTimeout(resolve, 300))
 
   return mockTransactions.find((txn) => txn.id === id) || null
 }
 
 export async function getTransactionsByEmail(email: string): Promise<Transaction[]> {
-  // Mock API call
   await new Promise((resolve) => setTimeout(resolve, 500))
 
   return mockTransactions
@@ -154,7 +189,6 @@ export async function getTransactionsByEmail(email: string): Promise<Transaction
 }
 
 export async function refundTransaction(transactionId: string): Promise<boolean> {
-  // Mock refund processing
   await new Promise((resolve) => setTimeout(resolve, 1500))
 
   const transactionIndex = mockTransactions.findIndex((txn) => txn.id === transactionId)
@@ -174,7 +208,7 @@ export function getPaymentMethodLabel(method: PaymentMethod): string {
       return "MB WAY"
     case "multibanco":
       return "Multibanco"
-    case "vint4": // Added vint4 label
+    case "vint4":
       return "Vint4"
     default:
       return method
@@ -191,7 +225,7 @@ export function getPaymentMethodIcon(method: PaymentMethod): string {
       return "📱"
     case "multibanco":
       return "🏧"
-    case "vint4": // Added vint4 icon
+    case "vint4":
       return "📲"
     default:
       return "💰"
@@ -228,12 +262,20 @@ export function validatePaymentData(paymentData: PaymentData): string | null {
       break
 
     case "multibanco":
-      // Multibanco doesn't require additional validation
       break
 
-    case "vint4": // Added vint4 validation
-      if (!paymentData.vint4Phone || !/^9\d{8}$/.test(paymentData.vint4Phone.replace(/\s/g, ""))) {
-        return "Número de telemóvel inválido para Vint4"
+    case "vint4":
+      if (!paymentData.vint4Email || !/\S+@\S+\.\S+/.test(paymentData.vint4Email)) {
+        return "Email inválido para Vinti4"
+      }
+      if (!paymentData.vint4BillCity || paymentData.vint4BillCity.trim().length < 2) {
+        return "Cidade inválida para Vinti4"
+      }
+      if (!paymentData.vint4BillAddress || paymentData.vint4BillAddress.trim().length < 5) {
+        return "Endereço inválido para Vinti4"
+      }
+      if (!paymentData.vint4PostalCode || paymentData.vint4PostalCode.trim().length < 3) {
+        return "Código postal inválido para Vinti4"
       }
       break
 

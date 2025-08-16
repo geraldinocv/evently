@@ -8,6 +8,17 @@ export async function middleware(request: NextRequest) {
     },
   })
 
+  const isVinti4Callback = request.nextUrl.pathname.startsWith("/api/payments/vinti4/callback")
+  const isVinti4Payment = request.nextUrl.pathname.includes("/checkout/vinti4")
+
+  if (isVinti4Callback) {
+    // Set specific headers for Vinti4 callbacks
+    response.headers.set("Cache-Control", "no-cache, no-store, must-revalidate")
+    response.headers.set("Pragma", "no-cache")
+    response.headers.set("Expires", "0")
+    return response
+  }
+
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -55,6 +66,12 @@ export async function middleware(request: NextRequest) {
   )
 
   await supabase.auth.getUser()
+
+  if (isVinti4Payment) {
+    response.headers.set("X-Frame-Options", "DENY")
+    response.headers.set("X-Content-Type-Options", "nosniff")
+    response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin")
+  }
 
   return response
 }

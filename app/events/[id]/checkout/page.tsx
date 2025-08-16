@@ -217,12 +217,12 @@ export default function CheckoutPage() {
                   </div>
                   <div className="flex justify-between">
                     <span>Preço unitário:</span>
-                    <span>€{selectedTicketType?.price}</span>
+                    <span>{selectedTicketType?.price} CVE</span>
                   </div>
                   <Separator />
                   <div className="flex justify-between font-semibold text-lg">
                     <span>Total:</span>
-                    <span className="text-green-600">€{totalAmount.toFixed(2)}</span>
+                    <span className="text-green-600">{totalAmount.toFixed(0)} CVE</span>
                   </div>
                 </div>
 
@@ -285,6 +285,10 @@ export default function CheckoutPage() {
                     <div className="flex items-center space-x-2">
                       <RadioGroupItem value="multibanco" id="multibanco" />
                       <Label htmlFor="multibanco">{getPaymentMethodLabel("multibanco")}</Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="vint4" id="vint4" />
+                      <Label htmlFor="vint4">{getPaymentMethodLabel("vint4")}</Label>
                     </div>
                   </RadioGroup>
                 </div>
@@ -373,6 +377,62 @@ export default function CheckoutPage() {
                   </Alert>
                 )}
 
+                {paymentData.method === "vint4" && (
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="vint4Email">Email *</Label>
+                      <Input
+                        id="vint4Email"
+                        type="email"
+                        placeholder="seu@email.com"
+                        value={paymentData.vint4Email || ""}
+                        onChange={(e) => setPaymentData((prev) => ({ ...prev, vint4Email: e.target.value }))}
+                        required
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="vint4BillCity">Cidade *</Label>
+                      <Input
+                        id="vint4BillCity"
+                        placeholder="Praia"
+                        value={paymentData.vint4BillCity || ""}
+                        onChange={(e) => setPaymentData((prev) => ({ ...prev, vint4BillCity: e.target.value }))}
+                        required
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="vint4BillAddress">Endereço *</Label>
+                      <Input
+                        id="vint4BillAddress"
+                        placeholder="Rua, Avenida, etc."
+                        value={paymentData.vint4BillAddress || ""}
+                        onChange={(e) => setPaymentData((prev) => ({ ...prev, vint4BillAddress: e.target.value }))}
+                        required
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="vint4PostalCode">Código Postal *</Label>
+                      <Input
+                        id="vint4PostalCode"
+                        placeholder="0000"
+                        value={paymentData.vint4PostalCode || ""}
+                        onChange={(e) => setPaymentData((prev) => ({ ...prev, vint4PostalCode: e.target.value }))}
+                        required
+                      />
+                    </div>
+
+                    <Alert>
+                      <AlertDescription>
+                        Será redirecionado para o sistema seguro Vinti4 onde irá inserir os dados do seu cartão e
+                        autenticar com OTP.
+                      </AlertDescription>
+                    </Alert>
+                  </div>
+                )}
+
                 {error && (
                   <Alert variant="destructive">
                     <AlertDescription>{error}</AlertDescription>
@@ -380,7 +440,7 @@ export default function CheckoutPage() {
                 )}
 
                 <Button type="submit" className="w-full" disabled={isProcessing}>
-                  {isProcessing ? "A processar pagamento..." : `Pagar €${totalAmount.toFixed(2)}`}
+                  {isProcessing ? "A processar pagamento..." : `Pagar ${totalAmount.toFixed(0)} CVE`}
                 </Button>
               </form>
             </CardContent>

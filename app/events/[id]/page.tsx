@@ -14,6 +14,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Ticket, ArrowLeft, Calendar, MapPin, Users, ShoppingCart } from "lucide-react"
+import { Separator } from "@/components/ui/separator"
 
 const COUNTRY_CODES = [
   { code: "+93", country: "Afeganistão", flag: "🇦🇫" },
@@ -445,7 +446,7 @@ export default function EventDetailsPage() {
                               </p>
                             </div>
                             <div className="text-right">
-                              <p className="font-bold text-lg">€{ticketType.price}</p>
+                              <p className="font-bold text-lg">{ticketType.price} CVE</p>
                             </div>
                           </div>
                         </div>
@@ -544,9 +545,14 @@ export default function EventDetailsPage() {
                 )}
 
                 <div className="border-t pt-4">
-                  <div className="flex items-center justify-between mb-4">
-                    <span className="font-medium">Total:</span>
-                    <span className="text-2xl font-bold text-green-600">€{totalPrice.toFixed(2)}</span>
+                  <div className="flex justify-between mb-4">
+                    <span>Preço unitário:</span>
+                    <span>{selectedTicketType?.price} CVE</span>
+                  </div>
+                  <Separator />
+                  <div className="flex justify-between font-semibold text-lg">
+                    <span>Total:</span>
+                    <span className="text-green-600">{totalPrice.toFixed(0)} CVE</span>
                   </div>
 
                   <Button type="submit" className="w-full" disabled={!selectedTicketType}>
