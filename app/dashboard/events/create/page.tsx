@@ -14,7 +14,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Ticket, ArrowLeft, Plus, Trash2 } from "lucide-react"
+import { Ticket, ArrowLeft, Plus, Trash2, ImageIcon } from "lucide-react"
 
 export default function CreateEventPage() {
   const { user } = useAuth()
@@ -31,6 +31,7 @@ export default function CreateEventPage() {
     category: "Música",
     capacity: 100,
     currency: "CVE",
+    imageUrl: "",
     ticketTypes: [
       {
         name: "Bilhete Geral",
@@ -167,6 +168,35 @@ export default function CreateEventPage() {
                   placeholder="Descreva o seu evento..."
                   rows={3}
                 />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="imageUrl" className="flex items-center gap-2">
+                  <ImageIcon className="h-4 w-4" />
+                  Cartaz do Evento (URL da Imagem)
+                </Label>
+                <Input
+                  id="imageUrl"
+                  type="url"
+                  value={formData.imageUrl || ""}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, imageUrl: e.target.value }))}
+                  placeholder="https://exemplo.com/cartaz-evento.jpg"
+                />
+                <p className="text-sm text-gray-500">
+                  Cole o URL de uma imagem para o cartaz do seu evento. Recomendamos imagens com proporção 16:9.
+                </p>
+                {formData.imageUrl && (
+                  <div className="mt-2">
+                    <img
+                      src={formData.imageUrl || "/placeholder.svg"}
+                      alt="Preview do cartaz"
+                      className="w-full max-w-md h-32 object-cover rounded-lg border"
+                      onError={(e) => {
+                        e.currentTarget.style.display = "none"
+                      }}
+                    />
+                  </div>
+                )}
               </div>
 
               <div className="grid md:grid-cols-3 gap-4">

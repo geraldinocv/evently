@@ -45,6 +45,7 @@ export interface CreateEventData {
   capacity?: number
   ticketTypes: Omit<TicketType, "id" | "sold">[]
   currency: string
+  imageUrl?: string
 }
 
 export const CURRENCY_OPTIONS = [
@@ -401,6 +402,18 @@ export async function updateEvent(id: string, data: Partial<CreateEventData>): P
     if (data.category) {
       updateFields.push(`category = $${paramIndex}`)
       params.push(data.category)
+      paramIndex++
+    }
+
+    if (data.capacity) {
+      updateFields.push(`capacity = $${paramIndex}`)
+      params.push(data.capacity)
+      paramIndex++
+    }
+
+    if (data.imageUrl) {
+      updateFields.push(`image_url = $${paramIndex}`)
+      params.push(data.imageUrl)
       paramIndex++
     }
 

@@ -10,8 +10,6 @@ interface User {
   id: string
   email: string
   name: string
-  role: string
-  approval_status: string
 }
 
 interface AuthState {
@@ -22,7 +20,7 @@ interface AuthState {
 
 interface AuthContextType extends AuthState {
   signIn: (email: string, password: string) => Promise<boolean>
-  signUp: (email: string, password: string, name: string, role: string) => Promise<boolean>
+  signUp: (email: string, password: string, name: string) => Promise<boolean>
   signOut: () => Promise<void>
 }
 
@@ -40,18 +38,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const {
         data: { session },
       } = await supabase.auth.getSession()
+
       if (session?.user) {
-        // Get user profile from profiles table
-        const { data: profile } = await supabase.from("profiles").select("*").eq("id", session.user.id).single()
+        const { data: profile } = await supabase.from("profiles").select("*").eq("user_id", session.user.id).single()
 
         if (profile) {
           setAuthState({
             user: {
-              id: profile.id,
+              id: session.user.id,
               email: session.user.email!,
-              name: profile.full_name,
-              role: profile.role,
-              approval_status: profile.approval_status,
+              name: profile.name || session.user.email!,
+            },
+            isLoading: false,
+            isAuthenticated: true,
+          })
+        } else {
+          setAuthState({
+            user: {
+              id: session.user.id,
+              email: session.user.email!,
+              name: session.user.email!,
             },
             isLoading: false,
             isAuthenticated: true,
@@ -68,16 +74,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (session?.user) {
-        const { data: profile } = await supabase.from("profiles").select("*").eq("id", session.user.id).single()
+        const { data: profile } = await supabase.from("profiles").select("*").eq("user_id", session.user.id).single()
 
         if (profile) {
           setAuthState({
             user: {
-              id: profile.id,
+              id: session.user.id,
               email: session.user.email!,
-              name: profile.full_name,
-              role: profile.role,
-              approval_status: profile.approval_status,
+              name: profile.name || session.user.email!,
+            },
+            isLoading: false,
+            isAuthenticated: true,
+          })
+        } else {
+          setAuthState({
+            user: {
+              id: session.user.id,
+              email: session.user.email!,
+              name: session.user.email!,
             },
             isLoading: false,
             isAuthenticated: true,
@@ -107,44 +121,39 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return false
       }
 
-      if (data.user) {
-        // Check if account is approved
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("approval_status")
-          .eq("id", data.user.id)
-          .single()
-
-        if (profile?.approval_status !== "approved") {
-          await supabase.auth.signOut()
-          return false
-        }
-
-        return true
-      }
-      return false
+      return !!data.user
     } catch (error) {
       console.error("Login error:", error)
       return false
     }
   }
 
-  const handleSignUp = async (email: string, password: string, name: string, role: string): Promise<boolean> => {
+  const handleSignUp = async (email: string, password: string, name: string): Promise<boolean> => {
     try {
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
-          data: {
-            full_name: name,
-            role: role,
-          },
+          emailRedirectTo: process.env.NEXT_PUBLIC_DEV_SUPABASE_REDIRECT_URL || window.location.origin,
         },
       })
 
       if (error) {
         console.error("Signup error:", error.message)
         return false
+      }
+
+      if (data.user) {
+        const { error: profileError } = await supabase.from("profiles").insert({
+          user_id: data.user.id,
+          name: name,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+
+        if (profileError) {
+          console.error("Profile creation error:", profileError.message)
+        }
       }
 
       return true
