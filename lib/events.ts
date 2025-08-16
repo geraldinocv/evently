@@ -294,8 +294,13 @@ export async function getEvent(id: string): Promise<Event | null> {
 
 export async function createEvent(data: CreateEventData, organizerId: string): Promise<Event> {
   try {
+    const connection = sql
+    if (!connection) {
+      throw new Error("Database connection not available")
+    }
+
     // Insert event
-    const eventResult = await sql(
+    const eventResult = await connection(
       `INSERT INTO evently.events (title, description, date, location, category, organizer_id, image_url, currency)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
        RETURNING *`,
@@ -316,7 +321,7 @@ export async function createEvent(data: CreateEventData, organizerId: string): P
     // Insert ticket types
     const ticketTypes = await Promise.all(
       data.ticketTypes.map(async (tt) => {
-        const result = await sql(
+        const result = await connection(
           `INSERT INTO evently.ticket_types (event_id, name, price, quantity, currency)
            VALUES ($1, $2, $3, $4, $5)
            RETURNING *`,
@@ -359,6 +364,12 @@ export async function createEvent(data: CreateEventData, organizerId: string): P
 
 export async function updateEvent(id: string, data: Partial<CreateEventData>): Promise<Event | null> {
   try {
+    const connection = sql
+    if (!connection) {
+      console.log("Database connection not available for update")
+      return null
+    }
+
     const updateFields = []
     const params = []
     let paramIndex = 1
@@ -409,7 +420,7 @@ export async function updateEvent(id: string, data: Partial<CreateEventData>): P
       RETURNING *
     `
 
-    const result = await sql(query, params)
+    const result = await connection(query, params)
 
     if (result.length === 0) return null
 
@@ -422,7 +433,13 @@ export async function updateEvent(id: string, data: Partial<CreateEventData>): P
 
 export async function deleteEvent(id: string): Promise<boolean> {
   try {
-    const result = await sql(`DELETE FROM evently.events WHERE id = $1`, [id])
+    const connection = sql
+    if (!connection) {
+      console.log("Database connection not available for delete")
+      return false
+    }
+
+    const result = await connection(`DELETE FROM evently.events WHERE id = $1`, [id])
 
     return result.length > 0
   } catch (error) {
