@@ -6,12 +6,14 @@ export interface Ticket {
   ticketTypeName: string
   customerName: string
   customerEmail: string
+  customerPhone?: string // Added phone field
   price: number
   purchaseDate: Date
   qrCode: string
   status: "valid" | "used" | "cancelled"
   validatedAt?: Date
   validatedBy?: string
+  uniqueLink?: string // Added unique link field
 }
 
 export interface PurchaseData {
@@ -20,6 +22,7 @@ export interface PurchaseData {
   quantity: number
   customerName: string
   customerEmail: string
+  customerPhone?: string // Added phone field
 }
 
 // Mock tickets data
@@ -32,10 +35,12 @@ export const mockTickets: Ticket[] = [
     ticketTypeName: "Bilhete Geral",
     customerName: "João Silva",
     customerEmail: "joao@email.com",
+    customerPhone: "912345678", // Added phone
     price: 45,
     purchaseDate: new Date("2025-01-10T14:30:00"),
     qrCode: generateQRCode("ticket-1"),
     status: "valid",
+    uniqueLink: "abc123xyz", // Added unique link
   },
   {
     id: "ticket-2",
@@ -45,12 +50,20 @@ export const mockTickets: Ticket[] = [
     ticketTypeName: "VIP",
     customerName: "Maria Santos",
     customerEmail: "maria@email.com",
+    customerPhone: "913456789", // Added phone
     price: 120,
     purchaseDate: new Date("2025-01-12T09:15:00"),
     qrCode: generateQRCode("ticket-2"),
     status: "valid",
+    uniqueLink: "def456uvw", // Added unique link
   },
 ]
+
+export function generateUniqueLink(): string {
+  const timestamp = Date.now().toString(36)
+  const random = Math.random().toString(36).substring(2, 15)
+  return `${timestamp}${random}`
+}
 
 export function generateQRCode(ticketId: string): string {
   // In a real app, this would generate an actual QR code
@@ -74,6 +87,7 @@ export async function purchaseTickets(purchaseData: PurchaseData): Promise<Ticke
 
   for (let i = 0; i < purchaseData.quantity; i++) {
     const ticketId = `ticket-${Date.now()}-${i}`
+    const uniqueLink = generateUniqueLink() // Generate unique link
     const ticket: Ticket = {
       id: ticketId,
       eventId: purchaseData.eventId,
@@ -82,19 +96,29 @@ export async function purchaseTickets(purchaseData: PurchaseData): Promise<Ticke
       ticketTypeName: "Bilhete Geral", // In real app, get from ticket type data
       customerName: purchaseData.customerName,
       customerEmail: purchaseData.customerEmail,
+      customerPhone: purchaseData.customerPhone, // Added phone
       price: 45, // In real app, get from ticket type data
       purchaseDate: new Date(),
       qrCode: generateQRCode(ticketId),
       status: "valid",
+      uniqueLink, // Added unique link
     }
     tickets.push(ticket)
     mockTickets.push(ticket)
   }
 
-  // Simulate email sending
+  // Simulate email and SMS sending
   await sendTicketEmail(tickets)
+  await sendTicketSMS(tickets) // Added SMS sending
 
   return tickets
+}
+
+export async function getTicketByLink(uniqueLink: string): Promise<Ticket | null> {
+  // Mock API call
+  await new Promise((resolve) => setTimeout(resolve, 500))
+
+  return mockTickets.find((ticket) => ticket.uniqueLink === uniqueLink) || null
 }
 
 export async function getTicketsByEmail(email: string): Promise<Ticket[]> {
@@ -156,5 +180,19 @@ async function sendTicketEmail(tickets: Ticket[]): Promise<void> {
     console.log(`- Ticket ID: ${ticket.id}`)
     console.log(`- QR Code: ${ticket.qrCode}`)
     console.log(`- Event: ${ticket.eventTitle}`)
+    console.log(`- Link: ${window.location.origin}/ticket/${ticket.uniqueLink}`) // Added link
+  })
+}
+
+async function sendTicketSMS(tickets: Ticket[]): Promise<void> {
+  // Mock SMS sending
+  console.log(`[MOCK SMS] Sending ${tickets.length} ticket link(s) to ${tickets[0].customerPhone}`)
+  console.log("SMS content would include:")
+  tickets.forEach((ticket) => {
+    console.log(`- Event: ${ticket.eventTitle}`)
+    console.log(`- Link: ${window.location.origin}/ticket/${ticket.uniqueLink}`)
+    console.log(
+      `- Message: "Seu bilhete para ${ticket.eventTitle}: ${window.location.origin}/ticket/${ticket.uniqueLink}"`,
+    )
   })
 }

@@ -26,6 +26,7 @@ export default function EventDetailsPage() {
     quantity: 1,
     customerName: "",
     customerEmail: "",
+    customerPhone: "", // Added phone field
   })
 
   useEffect(() => {
@@ -68,6 +69,11 @@ export default function EventDetailsPage() {
       return
     }
 
+    if (!purchaseForm.customerPhone.trim()) {
+      setError("Telefone é obrigatório")
+      return
+    }
+
     if (!purchaseForm.ticketTypeId) {
       setError("Selecione um tipo de bilhete")
       return
@@ -78,7 +84,8 @@ export default function EventDetailsPage() {
       `ticketType=${purchaseForm.ticketTypeId}&` +
       `quantity=${purchaseForm.quantity}&` +
       `name=${encodeURIComponent(purchaseForm.customerName)}&` +
-      `email=${encodeURIComponent(purchaseForm.customerEmail)}`
+      `email=${encodeURIComponent(purchaseForm.customerEmail)}&` +
+      `phone=${encodeURIComponent(purchaseForm.customerPhone)}` // Added phone to URL
 
     router.push(checkoutUrl)
   }
@@ -269,6 +276,19 @@ export default function EventDetailsPage() {
                     required
                     placeholder="seu@email.com"
                   />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="customerPhone">Telefone</Label>
+                  <Input
+                    id="customerPhone"
+                    type="tel"
+                    value={purchaseForm.customerPhone}
+                    onChange={(e) => setPurchaseForm((prev) => ({ ...prev, customerPhone: e.target.value }))}
+                    required
+                    placeholder="912 345 678"
+                  />
+                  <p className="text-xs text-gray-500">Receberá um SMS com o link do bilhete</p>
                 </div>
 
                 {error && (

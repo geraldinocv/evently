@@ -39,6 +39,7 @@ export default function CheckoutPage() {
   const quantity = Number.parseInt(searchParams.get("quantity") || "1")
   const customerName = searchParams.get("name") || ""
   const customerEmail = searchParams.get("email") || ""
+  const customerPhone = searchParams.get("phone") || ""
 
   const [paymentData, setPaymentData] = useState<PaymentData>({
     method: "card",
@@ -90,7 +91,7 @@ export default function CheckoutPage() {
       const paymentResult = await processPayment(
         paymentData,
         totalAmount,
-        { name: customerName, email: customerEmail },
+        { name: customerName, email: customerEmail, phone: customerPhone },
         { id: event.id, title: event.title },
       )
 
@@ -106,6 +107,7 @@ export default function CheckoutPage() {
         quantity,
         customerName,
         customerEmail,
+        customerPhone,
       }
 
       await purchaseTickets(purchaseData)
@@ -148,11 +150,14 @@ export default function CheckoutPage() {
           <CardHeader className="text-center">
             <CheckCircle className="h-16 w-16 text-green-600 mx-auto mb-4" />
             <CardTitle className="text-2xl text-green-600">Pagamento Confirmado!</CardTitle>
-            <CardDescription>Seus bilhetes foram enviados por email</CardDescription>
+            <CardDescription>Seus bilhetes foram enviados por email e SMS</CardDescription>
           </CardHeader>
           <CardContent className="text-center space-y-4">
             <p className="text-sm text-gray-600">
               Enviámos {quantity} bilhete(s) para <strong>{customerEmail}</strong>
+            </p>
+            <p className="text-sm text-gray-600">
+              Também enviámos links dos bilhetes via SMS para <strong>{customerPhone}</strong>
             </p>
             <p className="text-sm text-gray-600">Cada bilhete contém um QR Code único para entrada no evento.</p>
             <div className="flex gap-2">
@@ -229,6 +234,9 @@ export default function CheckoutPage() {
                     </p>
                     <p>
                       <strong>Email:</strong> {customerEmail}
+                    </p>
+                    <p>
+                      <strong>Telefone:</strong> {customerPhone}
                     </p>
                   </div>
                 </div>
