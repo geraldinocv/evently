@@ -2,6 +2,8 @@ import { createServerClient } from "@supabase/ssr"
 import { NextResponse, type NextRequest } from "next/server"
 
 export async function middleware(request: NextRequest) {
+  console.log("[v0] Middleware processing:", request.nextUrl.pathname)
+
   let response = NextResponse.next({
     request: {
       headers: request.headers,
@@ -16,6 +18,7 @@ export async function middleware(request: NextRequest) {
     response.headers.set("Cache-Control", "no-cache, no-store, must-revalidate")
     response.headers.set("Pragma", "no-cache")
     response.headers.set("Expires", "0")
+    console.log("[v0] Vinti4 callback processed")
     return response
   }
 
@@ -65,7 +68,11 @@ export async function middleware(request: NextRequest) {
     },
   )
 
-  await supabase.auth.getUser()
+  const {
+    data: { user },
+    error,
+  } = await supabase.auth.getUser()
+  console.log("[v0] User authenticated:", !!user, "Error:", !!error)
 
   if (isVinti4Payment) {
     response.headers.set("X-Frame-Options", "DENY")
@@ -73,6 +80,7 @@ export async function middleware(request: NextRequest) {
     response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin")
   }
 
+  console.log("[v0] Middleware completed for:", request.nextUrl.pathname)
   return response
 }
 
