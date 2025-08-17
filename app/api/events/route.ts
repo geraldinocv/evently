@@ -1,26 +1,23 @@
 import { NextResponse } from "next/server"
-import { createClient } from "@supabase/supabase-js"
+import { createClient } from "@/lib/supabase/server"
 
 export async function GET() {
   try {
-    const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
+    console.log("[v0] Events API: Creating Supabase client...")
+    const supabase = createClient()
 
+    console.log("[v0] Events API: Fetching events from database...")
     const { data: events, error } = await supabase
       .from("events")
-      .select(`
-        *,
-        profiles!events_organizer_id_fkey (
-          name,
-          email
-        )
-      `)
+      .select("id, title, description, date, location, price, max_attendees, image_url, created_at")
       .order("created_at", { ascending: false })
 
     if (error) {
-      console.error("[v0] Error fetching events:", error)
-      return NextResponse.json({ error: "Failed to fetch events" }, { status: 500 })
+      console.error("[v0] Database error:", error.message, error.details)
+      return NextResponse.json({ error: "Failed to fetch events", details: error.message }, { status: 500 })
     }
 
+    console.log("[v0] Events API: Successfully fetched", events?.length || 0, "events")
     return NextResponse.json(events || [])
   } catch (error) {
     console.error("[v0] API error:", error)

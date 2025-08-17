@@ -2,79 +2,78 @@
 
 import type React from "react"
 import { createContext, useContext, useEffect, useState } from "react"
-import { getCurrentUser, logoutUser, type User } from "@/lib/auth/supabase-auth"
+import { createClient } from "@/lib/supabase/client"
+import type { User } from "@supabase/supabase-js"
 
-interface AuthState {
+interface AuthContextType {
   user: User | null
   isLoading: boolean
   isAuthenticated: boolean
-}
-
-interface AuthContextType extends AuthState {
   signOut: () => Promise<void>
-  refreshUser: () => void
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [authState, setAuthState] = useState<AuthState>({
-    user: null,
-    isLoading: true,
-    isAuthenticated: false,
-  })
+  const [user, setUser] = useState<User | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const supabase = createClient()
 
   useEffect(() => {
-    const checkAuth = () => {
-      console.log("[v0] Checking authentication state")
-      const user = getCurrentUser()
+    // Get initial session
+    const getInitialSession = async () => {
+      try {
+        console.log("[v0] Getting initial session...")
+        const {
+          data: { session },
+          error,
+        } = await supabase.auth.getSession()
 
-      setAuthState({
-        user,
-        isLoading: false,
-        isAuthenticated: !!user,
-      })
+        if (error) {
+          console.error("[v0] Session error:", error)
+        }
 
-      console.log("[v0] Auth state updated:", { authenticated: !!user, user: user?.email })
-    }
+        console.log("[v0] Initial session:", session?.user?.email || "No user")
+        setUser(session?.user ?? null)
+        setIsLoading(false)
 
-    checkAuth()
-
-    const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === "evently_user") {
-        checkAuth()
+        console.log("[v0] Auth state updated:", {
+          authenticated: !!session?.user,
+          email: session?.user?.email,
+        })
+      } catch (error) {
+        console.error("[v0] Auth initialization error:", error)
+        setUser(null)
+        setIsLoading(false)
       }
     }
 
-    window.addEventListener("storage", handleStorageChange)
-    return () => window.removeEventListener("storage", handleStorageChange)
-  }, [])
+    getInitialSession()
 
-  const handleSignOut = async (): Promise<void> => {
-    console.log("[v0] Signing out user")
-    logoutUser()
-    setAuthState({
-      user: null,
-      isLoading: false,
-      isAuthenticated: false,
+    // Listen for auth changes
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log("[v0] Auth state change:", event, session?.user?.email || "No user")
+      setUser(session?.user ?? null)
+      setIsLoading(false)
     })
-  }
 
-  const refreshUser = () => {
-    const user = getCurrentUser()
-    setAuthState({
-      user,
-      isLoading: false,
-      isAuthenticated: !!user,
-    })
+    return () => subscription.unsubscribe()
+  }, [supabase.auth])
+
+  const signOut = async () => {
+    console.log("[v0] Signing out...")
+    await supabase.auth.signOut()
   }
 
   return (
     <AuthContext.Provider
       value={{
-        ...authState,
-        signOut: handleSignOut,
-        refreshUser,
+        user,
+        isLoading,
+        isAuthenticated: !!user,
+        signOut,
       }}
     >
       {children}
