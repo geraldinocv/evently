@@ -14,15 +14,28 @@ export default function HomePage() {
   useEffect(() => {
     async function fetchEvents() {
       try {
+        console.log("[v0] HomePage: Fetching events...")
         const response = await fetch("/api/events")
+        console.log("[v0] HomePage: Response status:", response.status)
+
+        const text = await response.text()
+        console.log("[v0] HomePage: Response text:", text.substring(0, 200))
+
         if (response.ok) {
-          const eventsData = await response.json()
-          setEvents(eventsData)
+          try {
+            const eventsData = JSON.parse(text)
+            console.log("[v0] HomePage: Events parsed:", eventsData.length)
+            setEvents(eventsData)
+          } catch (parseError) {
+            console.error("[v0] HomePage: JSON parse error:", parseError)
+            console.error("[v0] HomePage: Response was:", text)
+          }
         } else {
-          console.error("[v0] Failed to fetch events:", response.statusText)
+          console.error("[v0] HomePage: Failed to fetch events:", response.statusText)
+          console.error("[v0] HomePage: Error response:", text)
         }
       } catch (error) {
-        console.error("[v0] Error fetching events:", error)
+        console.error("[v0] HomePage: Error fetching events:", error)
       } finally {
         setLoading(false)
       }
